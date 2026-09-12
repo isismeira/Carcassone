@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Carcassonne</title>
+<meta name="description" content="Tela inicial do Carcassonne: escolha seu nome e o formato da partida.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<main class="scene">
+  <div class="scene__art" aria-hidden="true"></div>
+  <div class="scene__mist" data-mist aria-hidden="true"></div>
+  <div class="scene__vignette" aria-hidden="true"></div>
+
+  <div class="stage">
+
+    <img class="logo" src="assets/Logocarcassone.png" alt="Carcassonne" data-logo>
+    <p class="logo-fallback" data-logo-fallback hidden>Carcassonne</p>
+
+    <section class="panel">
+      <span class="panel__pin panel__pin--tl" aria-hidden="true"></span>
+      <span class="panel__pin panel__pin--tr" aria-hidden="true"></span>
+      <span class="panel__pin panel__pin--bl" aria-hidden="true"></span>
+      <span class="panel__pin panel__pin--br" aria-hidden="true"></span>
+
+      <div class="view" data-view="setup">
+
+        <div class="field">
+          <label class="field__label" for="player-name">Nome do jogador</label>
+          <input class="field__input" id="player-name" data-name type="text" maxlength="18"
+                 placeholder="Digite seu nome..." autocomplete="off" spellcheck="false">
+        </div>
+
+        <div class="field">
+          <span class="field__label" id="mode-label">Formato da partida</span>
+          <div class="modes" role="radiogroup" aria-labelledby="mode-label" data-modes>
+
+            <button class="mode" type="button" role="radio" aria-checked="false" tabindex="0" data-mode="ai">
+              <span class="mode__meeples" aria-hidden="true">
+                <span class="meeple meeple--grey"></span>
+                <span class="meeple meeple--grey"></span>
+              </span>
+              <span class="mode__name">Contra IAs</span>
+              <span class="mode__ring" aria-hidden="true"></span>
+            </button>
+
+            <button class="mode" type="button" role="radio" aria-checked="false" tabindex="-1" data-mode="human">
+              <span class="mode__meeples" aria-hidden="true">
+                <span class="meeple meeple--red"></span>
+                <span class="meeple meeple--blue"></span>
+              </span>
+              <span class="mode__name">Contra jogadores</span>
+              <span class="mode__ring" aria-hidden="true"></span>
+            </button>
+
+            <button class="mode" type="button" role="radio" aria-checked="false" tabindex="-1" data-mode="mixed">
+              <span class="mode__meeples" aria-hidden="true">
+                <span class="meeple meeple--green"></span>
+                <span class="meeple meeple--grey"></span>
+              </span>
+              <span class="mode__name">IAs e jogadores</span>
+              <span class="mode__ring" aria-hidden="true"></span>
+            </button>
+
+          </div>
+        </div>
+
+        <div class="rule" aria-hidden="true"></div>
+
+        <div class="play-block">
+          <button class="play" type="button" data-play disabled>Jogar</button>
+          <p class="hint" data-hint role="status"></p>
+        </div>
+
+        <nav class="links" data-links>
+          <a href="#como-jogar" data-link="how">Como jogar</a>
+          <span class="links__sep" aria-hidden="true">&nbsp;·&nbsp;</span>
+          <a href="#regras" data-link="rules">Regras &amp; pontuação</a>
+        </nav>
+
+      </div>
+
+]      <div class="view start" data-view="start" hidden>
+        <span class="start__eyebrow">Preparando a partida</span>
+        <span class="start__name" data-start-name></span>
+        <p class="start__summary" data-summary></p>
+        <button class="ghost" type="button" data-back>Voltar</button>
+      </div>
+
+    </section>
+
+  </div>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
