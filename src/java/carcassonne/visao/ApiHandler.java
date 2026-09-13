@@ -1,0 +1,142 @@
+package carcassonne.visao;
+
+import carcassonne.controle.ControladorDePartida;
+import carcassonne.modelo.Lado;
+import carcassonne.modelo.Peca;
+import carcassonne.modelo.Posicao;
+
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Traduz o estado do modelo para JSON e devolve as acoes da tela ao controlador.
+ * E o unico ponto onde o dominio encosta no mundo HTTP.
+ */
+public class ApiHandler implements HttpHandler {
+    private final ControladorDePartida controlador = new ControladorDePartida();
+
+    @Override
+    public void handle(HttpExchange troca) throws IOException {
+        try {
+            String rota = troca.getRequestURI().getPath();
+            String corpo = "POST".equals(troca.getRequestMethod())
+                    ? ServidorWeb.lerCorpo(troca) : "";
+
+            switch (rota) {
+                case "/api/partida" -> {
+                    controlador.novaPartida(Json.texto(corpo, "nome", "Jogador"),
+                            Json.texto(corpo, "modo", "ai"));
+                    responderEstado(troca);
+                }
+                case "/api/rotacionar" -> {
+                    exigirPartida();
+                    controlador.rotacionar(!"esquerda".equals(Json.texto(corpo, "sentido", "direita")));
+                    responderEstado(troca);
+                }
+                case "/api/colocar" -> {
+                    exigirPartida();
+                    controlador.colocar(Json.inteiro(corpo, "x", 0), Json.inteiro(corpo, "y", 0));
+                    responderEstado(troca);
+                }
+                case "/api/estado" -> {
+                    exigirPartida();
+                    responderEstado(troca);
+                }
+                default -> erro(troca, 404, "rota desconhecida: " + rota);
+            }
+        } catch (IllegalStateException semPartida) {
+            erro(troca, 409, semPartida.getMessage());
+        } catch (RuntimeException falha) {
+            erro(troca, 500, String.valueOf(falha.getMessage()));
+        }
+    }
+
+    private void exigirPartida() {
+        if (!controlador.temPartida()) {
+            throw new IllegalStateException("nenhuma partida em andamento");
+        }
+    }
+
+    private void responderEstado(HttpExchange troca) throws IOException {
+        byte[] corpo = Json.escrever(montarEstado()).getBytes(StandardCharsets.UTF_8);
+        ServidorWeb.responder(troca, 200, "application/json; charset=utf-8", corpo);
+    }
+
+    private void erro(HttpExchange troca, int status, String mensagem) throws IOException {
+        byte[] corpo = Json.escrever(Map.of("erro", mensagem)).getBytes(StandardCharsets.UTF_8);
+        ServidorWeb.responder(troca, status, "application/json; charset=utf-8", corpo);
+    }
+
+    /** Monta a fotografia do jogo que a tela precisa para desenhar tudo. */
+    private Map<String, Object> montarEstado() {
+        Map<String, Object> estado = new LinkedHashMap<>();
+
+        estado.put("jogador", Map.of(
+                "nome", controlador.getJogador().getNome(),
+                "cor", controlador.getJogador().getCor().name(),
+                "pontos", controlador.getJogador().getPontos(),
+                "meeples", controlador.getJogador().getMeeplesDisponiveis()));
+
+        estado.put("modo", controlador.getModo());
+
+        estado.put("baralho", Map.of(
+                "restantes", controlador.getPartida().getBaralho().quantidadeRestante(),
+                "total", carcassonne.modelo.Baralho.TOTAL_DE_CARTELAS,
+                "descartadas", controlador.getPartida().getBaralho().quantidadeDescartada()));
+
+        estado.put("pecaAtual", descreverPecaAtual());
+        estado.put("candidatas", descreverCandidatas());
+        estado.put("tabuleiro", descreverTabuleiro());
+        estado.put("encerrada", controlador.encerrada());
+        estado.put("mensagem", controlador.getMensagem());
+        return estado;
+    }
+
+    private Object descreverPecaAtual() {
+        Peca peca = controlador.getPecaAtual();
+        if (peca == null) {
+            return null;
+        }
+        Map<String, Object> bordas = new LinkedHashMap<>();
+        for (Lado lado : Lado.values()) {
+            bordas.put(lado.name(), peca.bordaEm(lado) == null ? null : peca.bordaEm(lado).name());
+        }
+        Map<String, Object> descricao = new LinkedHashMap<>();
+        descricao.put("id", peca.getId());
+        descricao.put("imagem", peca.getImagem());
+        descricao.put("rotacao", peca.getRotacao());
+        descricao.put("brasao", peca.temBrasao());
+        descricao.put("bordas", bordas);
+        return descricao;
+    }
+
+    private List<Object> descreverCandidatas() {
+        List<Object> lista = new ArrayList<>();
+        for (Posicao posicao : controlador.candidatas()) {
+            lista.add(Map.of("x", posicao.getX(), "y", posicao.getY()));
+        }
+        return lista;
+    }
+
+    private List<Object> descreverTabuleiro() {
+        List<Object> lista = new ArrayList<>();
+        controlador.getPartida().getTabuleiro().getPecas().forEach((posicao, peca) -> {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("x", posicao.getX());
+            item.put("y", posicao.getY());
+            item.put("imagem", peca.getImagem());
+            item.put("rotacao", peca.getRotacao());
+            item.put("brasao", peca.temBrasao());
+            item.put("inicial", peca.isInicial());
+            lista.add(item);
+        });
+        return lista;
+    }
+}

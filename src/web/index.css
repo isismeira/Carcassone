@@ -93,7 +93,7 @@ body {
 }
 
 .has-art .scene__art {
-  background-image: url('assets/carcassoneimagemfinal.png');
+  background-image: url('assets/marca/carcassoneimagemfinal.png');
 }
 
 .has-art .scene__art::before,

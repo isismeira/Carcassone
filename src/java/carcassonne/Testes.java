@@ -1,0 +1,337 @@
+package carcassonne;
+
+import carcassonne.controle.ControladorDePartida;
+import carcassonne.modelo.Baralho;
+import carcassonne.modelo.Lado;
+import carcassonne.modelo.Mosteiro;
+import carcassonne.modelo.Peca;
+import carcassonne.modelo.Posicao;
+import carcassonne.modelo.Regiao;
+import carcassonne.modelo.Segmento;
+import carcassonne.modelo.Tabuleiro;
+import carcassonne.modelo.TipoTerreno;
+
+import java.util.List;
+
+/** Conferencia das regras do modelo, executada com {@code java carcassonne.Principal --testes}. */
+public final class Testes {
+    private static int passou;
+    private static int falhou;
+
+    private Testes() {
+    }
+
+    public static int executar() {
+        baralhoTem72Cartelas();
+        rotacaoCompletaVoltaAoOriginal();
+        rotacaoGiraAsBordas();
+        encaixeComparaTerrenos();
+        segmentosDerivadosCorretamente();
+        naoColocaIsoladaNemSobrepoe();
+        candidatasDependemDaRotacao();
+        estradaFechaNasDuasPontas();
+        mosteiroFechaComOitoVizinhas();
+        cidadeContaBrasao();
+        descarteQuandoNaoCabe();
+        cartelaSemEncaixeEmLugarNenhum();
+        nenhumaCartelaSeperde();
+        desempenhoDeFechamento();
+
+        System.out.println();
+        System.out.println("  " + passou + " passaram, " + falhou + " falharam");
+        return falhou == 0 ? 0 : 1;
+    }
+
+    // ---------- casos ----------
+
+    private static void baralhoTem72Cartelas() {
+        Baralho baralho = new Baralho();
+        checar("baralho tem 72 cartelas (RF02.1)",
+                baralho.quantidadeRestante() == Baralho.TOTAL_DE_CARTELAS,
+                "tinha " + baralho.quantidadeRestante());
+    }
+
+    private static void rotacaoCompletaVoltaAoOriginal() {
+        Peca peca = Baralho.criarPecaInicial();
+        String antes = bordas(peca);
+        for (int i = 0; i < 4; i++) {
+            peca.rotacionarDireita();
+        }
+        checar("4 rotacoes de 90 graus voltam ao estado inicial (RF02.4)",
+                bordas(peca).equals(antes) && peca.getRotacao() == 0,
+                antes + " -> " + bordas(peca));
+    }
+
+    private static void rotacaoGiraAsBordas() {
+        Peca peca = Baralho.criarPecaInicial(); // CastleWallRoad: N=cidade, L=estrada, S=campo, O=estrada
+        TipoTerreno norteAntes = peca.bordaEm(Lado.NORTE);
+        peca.rotacionarDireita();
+        checar("girar a direita leva o norte para o leste",
+                peca.bordaEm(Lado.LESTE) == norteAntes,
+                "norte era " + norteAntes + ", leste virou " + peca.bordaEm(Lado.LESTE));
+
+        peca.rotacionarEsquerda();
+        checar("girar a esquerda desfaz o giro",
+                peca.bordaEm(Lado.NORTE) == norteAntes, bordas(peca));
+    }
+
+    private static void encaixeComparaTerrenos() {
+        Peca a = Baralho.criarPecaInicial(); // norte = cidade
+        Peca b = Baralho.criarPecaInicial();
+        // b ao norte de a: lado sul de b encosta no norte de a
+        checar("cidade nao encaixa com campo (RF03.4)",
+                !a.encaixaCom(b, Lado.NORTE),
+                a.bordaEm(Lado.NORTE) + " vs " + b.bordaEm(Lado.SUL));
+
+        b.rotacionarDireita();
+        b.rotacionarDireita();
+        checar("cidade encaixa com cidade depois de girar (RF03.4)",
+                a.encaixaCom(b, Lado.NORTE),
+                a.bordaEm(Lado.NORTE) + " vs " + b.bordaEm(Lado.SUL));
+    }
+
+    private static void segmentosDerivadosCorretamente() {
+        Peca inicial = Baralho.criarPecaInicial();
+        Segmento estrada = inicial.segmentoEm(Lado.LESTE);
+        checar("a estrada reta da cartela inicial liga leste e oeste",
+                estrada != null && estrada.getTipo() == TipoTerreno.ESTRADA
+                        && estrada.quantidadeDeLados() == 2 && estrada.ocupa(Lado.OESTE),
+                String.valueOf(estrada));
+
+        Peca mosteiro = acharNoBaralho("Monastery#1");
+        checar("cartela de mosteiro tem segmento de mosteiro sem lados",
+                mosteiro.temMosteiro() && mosteiro.getSegmentos().stream()
+                        .anyMatch(s -> s.getTipo() == TipoTerreno.MOSTEIRO && s.quantidadeDeLados() == 0),
+                String.valueOf(mosteiro.getSegmentos().size()));
+
+        Peca cruzamento = acharNoBaralho("RoadJunctionSmall#1");
+        long estradas = cruzamento.getSegmentos().stream()
+                .filter(s -> s.getTipo() == TipoTerreno.ESTRADA).count();
+        checar("cruzamento parte a estrada em 3 segmentos",
+                estradas == 3, "eram " + estradas);
+
+        Peca cidadeOposta = acharNoBaralho("CastleSides#1");
+        long cidades = cidadeOposta.getSegmentos().stream()
+                .filter(s -> s.getTipo() == TipoTerreno.CIDADE).count();
+        checar("cidade de lados opostos fica em 2 segmentos separados",
+                cidades == 2, "eram " + cidades);
+
+        Peca cidadeCanto = acharNoBaralho("CastleEdge#1");
+        long cantos = cidadeCanto.getSegmentos().stream()
+                .filter(s -> s.getTipo() == TipoTerreno.CIDADE).count();
+        checar("cidade de canto une os dois lados em 1 segmento",
+                cantos == 1, "eram " + cantos);
+    }
+
+    private static void naoColocaIsoladaNemSobrepoe() {
+        Tabuleiro tabuleiro = new Tabuleiro();
+        tabuleiro.colocar(Baralho.criarPecaInicial(), new Posicao(0, 0));
+
+        Peca outra = Baralho.criarPecaInicial();
+        checar("posicao isolada e recusada (RF03.3)",
+                !tabuleiro.podeColocar(outra, new Posicao(5, 5)), "aceitou (5,5)");
+        checar("posicao ocupada e recusada (RF03.3)",
+                !tabuleiro.podeColocar(outra, new Posicao(0, 0)), "aceitou (0,0)");
+    }
+
+    private static void candidatasDependemDaRotacao() {
+        Tabuleiro tabuleiro = new Tabuleiro();
+        tabuleiro.colocar(Baralho.criarPecaInicial(), new Posicao(0, 0));
+
+        Peca peca = acharNoBaralho("Road#1"); // estrada reta norte-sul
+        List<Posicao> antes = tabuleiro.posicoesCandidatas(peca);
+        peca.rotacionarDireita();
+        List<Posicao> depois = tabuleiro.posicoesCandidatas(peca);
+
+        checar("com 1 cartela no tabuleiro ha no maximo 4 candidatas",
+                antes.size() <= 4 && depois.size() <= 4,
+                antes.size() + " / " + depois.size());
+        checar("girar a cartela muda as posicoes validas (RNF04.1)",
+                !antes.equals(depois), antes + " vs " + depois);
+    }
+
+    private static void estradaFechaNasDuasPontas() {
+        Tabuleiro tabuleiro = new Tabuleiro();
+        // a cartela inicial tem estrada ligando leste e oeste
+        tabuleiro.colocar(Baralho.criarPecaInicial(), new Posicao(0, 0));
+
+        Regiao estrada = tabuleiro.getRegioes().stream()
+                .filter(r -> r.getTipo() == TipoTerreno.ESTRADA)
+                .findFirst().orElseThrow();
+        checar("estrada da cartela inicial nasce com 2 pontas abertas",
+                estrada.getPontasAbertas() == 2, "pontas=" + estrada.getPontasAbertas());
+
+        // MonasteryRoad e o beco sem saida: um unico lado de estrada
+        checar("beco sem saida fecha a ponta leste",
+                encaixarGirando(tabuleiro, acharNoBaralho("MonasteryRoad#1"), new Posicao(1, 0)),
+                "nao coube a leste");
+        checar("com uma ponta fechada a estrada ainda nao esta completa",
+                !estrada.estaCompleta(), "pontas=" + estrada.getPontasAbertas());
+
+        checar("beco sem saida fecha a ponta oeste",
+                encaixarGirando(tabuleiro, acharNoBaralho("MonasteryRoad#2"), new Posicao(-1, 0)),
+                "nao coube a oeste");
+        checar("estrada fechada nas duas pontas esta completa (RF05.1)",
+                estrada.estaCompleta(), "pontas=" + estrada.getPontasAbertas());
+        checar("estrada de 3 cartelas vale 3 pontos (RF05.3)",
+                estrada.calcularPontos(false) == 3, "valeu " + estrada.calcularPontos(false));
+    }
+
+    private static void mosteiroFechaComOitoVizinhas() {
+        Tabuleiro tabuleiro = new Tabuleiro();
+        Peca mosteiro = acharNoBaralho("Monastery#1");
+        tabuleiro.colocar(mosteiro, new Posicao(0, 0));
+
+        Mosteiro regiao = (Mosteiro) mosteiro.getSegmentos().stream()
+                .filter(s -> s.getTipo() == TipoTerreno.MOSTEIRO)
+                .findFirst().orElseThrow().getRegiao();
+        checar("mosteiro sozinho nao esta completo", !regiao.estaCompleta(), "completo cedo demais");
+
+        // primeiro as 4 ortogonais, depois as 4 diagonais: uma diagonal colocada
+        // cedo demais nao teria vizinha ortogonal e seria recusada (RF03.3)
+        int[][] ordem = {{0, -1}, {1, 0}, {0, 1}, {-1, 0}, {-1, -1}, {1, -1}, {1, 1}, {-1, 1}};
+        int n = 1;
+        for (int[] passo : ordem) {
+            Peca vizinha = acharNoBaralho("Monastery#" + (n % 4 + 1));
+            boolean colocou = tabuleiro.colocar(vizinha, new Posicao(passo[0], passo[1]));
+            checar("vizinha (" + passo[0] + "," + passo[1] + ") entra no tabuleiro",
+                    colocou, "recusada");
+            n++;
+        }
+
+        checar("mosteiro cercado por 8 cartelas fecha (RF05.1)",
+                regiao.estaCompleta(), "vizinhas=" + regiao.getCartelasVizinhas());
+        checar("mosteiro fechado vale 9 pontos (RF05.3)",
+                regiao.calcularPontos(false) == 9, "valeu " + regiao.calcularPontos(false));
+    }
+
+    private static void cidadeContaBrasao() {
+        Peca comBrasao = acharNoBaralho("CastleCenter#1");
+        checar("cartela quase toda cidade tem brasao", comBrasao.temBrasao(), "sem brasao");
+        Peca semBrasao = acharNoBaralho("Road#1");
+        checar("cartela de estrada nao tem brasao", !semBrasao.temBrasao(), "com brasao");
+    }
+
+    private static void descarteQuandoNaoCabe() {
+        ControladorDePartida controlador = new ControladorDePartida();
+        controlador.novaPartida("Teste", "ai");
+        checar("partida nova ja tem cartela na mao",
+                controlador.getPecaAtual() != null, "mao vazia");
+        checar("partida nova tem posicoes validas (RNF04.1)",
+                !controlador.candidatas().isEmpty(), "nenhuma candidata");
+
+        int restantesAntes = controlador.getPartida().getBaralho().quantidadeRestante();
+        Posicao alvo = controlador.candidatas().get(0);
+        boolean ok = controlador.colocar(alvo.getX(), alvo.getY());
+        checar("colocar numa candidata funciona e compra a proxima",
+                ok && controlador.getPartida().getBaralho().quantidadeRestante() < restantesAntes,
+                "ok=" + ok);
+        checar("colocar em posicao invalida e recusado",
+                !controlador.colocar(99, 99), "aceitou (99,99)");
+    }
+
+    /**
+     * Cenario deterministico do RF02.3: um tabuleiro so com mosteiro expoe
+     * apenas campo, entao a cartela toda de cidade nao cabe em rotacao alguma.
+     */
+    private static void cartelaSemEncaixeEmLugarNenhum() {
+        Tabuleiro tabuleiro = new Tabuleiro();
+        tabuleiro.colocar(acharNoBaralho("Monastery#1"), new Posicao(0, 0));
+
+        Peca sohCidade = acharNoBaralho("CastleCenter#1");
+        boolean coubeEmAlguma = false;
+        for (int giro = 0; giro < 4; giro++) {
+            coubeEmAlguma |= !tabuleiro.posicoesCandidatas(sohCidade).isEmpty();
+            sohCidade.rotacionarDireita();
+        }
+        checar("cartela toda de cidade nao encaixa ao redor de um mosteiro (RF02.3)",
+                !coubeEmAlguma, "encontrou encaixe");
+
+        Peca soCampo = acharNoBaralho("Monastery#2");
+        checar("cartela de campo encaixa ao redor do mosteiro",
+                !tabuleiro.posicoesCandidatas(soCampo).isEmpty(), "nao coube");
+    }
+
+    /** Nenhuma cartela some: colocadas + descartadas + restantes = 72. */
+    private static void nenhumaCartelaSeperde() {
+        ControladorDePartida controlador = new ControladorDePartida();
+        controlador.novaPartida("Conservacao", "ai");
+        while (!controlador.encerrada()) {
+            List<Posicao> candidatas = controlador.candidatas();
+            if (candidatas.isEmpty()) {
+                break;
+            }
+            controlador.colocar(candidatas.get(0).getX(), candidatas.get(0).getY());
+        }
+        int noTabuleiro = controlador.getPartida().getTabuleiro().quantidadeDePecas() - 1; // menos a inicial
+        int descartadas = controlador.getPartida().getBaralho().quantidadeDescartada();
+        int restantes = controlador.getPartida().getBaralho().quantidadeRestante();
+        checar("colocadas + descartadas + restantes = 72 (RF02.1)",
+                noTabuleiro + descartadas + restantes == Baralho.TOTAL_DE_CARTELAS,
+                noTabuleiro + " + " + descartadas + " + " + restantes);
+        checar("a partida termina com o baralho vazio (RF01.5)",
+                restantes == 0, "sobraram " + restantes);
+    }
+
+    private static void desempenhoDeFechamento() {
+        long inicio = System.nanoTime();
+        ControladorDePartida controlador = new ControladorDePartida();
+        controlador.novaPartida("Desempenho", "ai");
+        int jogadas = 0;
+        while (!controlador.encerrada() && jogadas < 72) {
+            List<Posicao> candidatas = controlador.candidatas();
+            if (candidatas.isEmpty()) {
+                break;
+            }
+            controlador.colocar(candidatas.get(0).getX(), candidatas.get(0).getY());
+            jogadas++;
+        }
+        long ms = (System.nanoTime() - inicio) / 1_000_000;
+        checar("partida inteira roda em menos de 100ms por jogada (RNF02.2)",
+                ms < 100 * Math.max(1, jogadas),
+                ms + "ms em " + jogadas + " jogadas");
+        System.out.println("      (" + jogadas + " cartelas colocadas em " + ms + "ms)");
+    }
+
+    // ---------- apoio ----------
+
+    /** Tenta as 4 rotacoes ate a cartela caber na posicao. */
+    private static boolean encaixarGirando(Tabuleiro tabuleiro, Peca peca, Posicao posicao) {
+        for (int giro = 0; giro < 4; giro++) {
+            if (tabuleiro.colocar(peca, posicao)) {
+                return true;
+            }
+            peca.rotacionarDireita();
+        }
+        return false;
+    }
+
+    private static Peca acharNoBaralho(String id) {
+        Baralho baralho = new Baralho();
+        Peca peca;
+        while ((peca = baralho.comprar()) != null) {
+            if (peca.getId().equals(id)) {
+                return peca;
+            }
+        }
+        throw new IllegalArgumentException("cartela inexistente no catalogo: " + id);
+    }
+
+    private static String bordas(Peca peca) {
+        StringBuilder texto = new StringBuilder();
+        for (Lado lado : Lado.values()) {
+            texto.append(lado).append("=").append(peca.bordaEm(lado)).append(" ");
+        }
+        return texto.toString().trim();
+    }
+
+    private static void checar(String descricao, boolean condicao, String detalhe) {
+        if (condicao) {
+            passou++;
+            System.out.println("  ok   " + descricao);
+        } else {
+            falhou++;
+            System.out.println("  FALHA " + descricao + "  -> " + detalhe);
+        }
+    }
+}

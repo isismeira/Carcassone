@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Carcassonne — Partida</title>
+<meta name="description" content="Protótipo do encaixe de peças do Carcassonne.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="jogo.css">
+</head>
+<body>
+
+<div class="jogo">
+
+  <header class="hud">
+    <div class="hud__jogador">
+      <span class="hud__chip" data-cor aria-hidden="true"></span>
+      <span class="hud__nome" data-nome>—</span>
+      <span class="hud__modo" data-modo></span>
+    </div>
+
+    <div class="hud__contadores">
+      <div class="contador">
+        <span class="contador__valor" data-restantes>—</span>
+        <span class="contador__rotulo">peças no baralho</span>
+      </div>
+      <div class="contador">
+        <span class="contador__valor" data-colocadas>—</span>
+        <span class="contador__rotulo">no tabuleiro</span>
+      </div>
+      <div class="contador contador--descarte" data-bloco-descarte hidden>
+        <span class="contador__valor" data-descartadas>0</span>
+        <span class="contador__rotulo">descartadas</span>
+      </div>
+    </div>
+
+    <a class="hud__sair" href="index.html">Sair</a>
+  </header>
+
+  <main class="mesa">
+    <div class="tabuleiro" data-tabuleiro tabindex="0" aria-label="Tabuleiro da partida">
+      <div class="tabuleiro__mundo" data-mundo></div>
+    </div>
+
+    <div class="zoom" role="group" aria-label="Ampliação do tabuleiro">
+      <button type="button" data-zoom="-1" aria-label="Afastar">−</button>
+      <button type="button" data-zoom="0" aria-label="Centralizar o tabuleiro">⌖</button>
+      <button type="button" data-zoom="1" aria-label="Aproximar">+</button>
+    </div>
+  </main>
+
+  <aside class="painel">
+    <h2 class="painel__titulo">Peça da vez</h2>
+
+    <div class="peca-atual">
+      <div class="peca-atual__moldura" data-moldura>
+        <img class="peca-atual__imagem" data-peca-imagem alt="">
+        <img class="peca-atual__brasao" data-peca-brasao src="assets/tiles/emblem.png" alt="" hidden>
+      </div>
+      <p class="peca-atual__id" data-peca-id>—</p>
+    </div>
+
+    <div class="girar" role="group" aria-label="Girar a peça">
+      <button class="girar__botao" type="button" data-girar="esquerda">
+        <span aria-hidden="true">⟲</span> Girar
+      </button>
+      <button class="girar__botao" type="button" data-girar="direita">
+        Girar <span aria-hidden="true">⟳</span>
+      </button>
+    </div>
+
+    <p class="painel__dica" data-dica role="status">
+      Gire a peça e clique em um espaço destacado para encaixá-la.
+    </p>
+
+    <p class="painel__aviso" data-aviso role="status"></p>
+
+    <dl class="bordas" data-bordas>
+      <div><dt>Norte</dt><dd data-borda="NORTE">—</dd></div>
+      <div><dt>Leste</dt><dd data-borda="LESTE">—</dd></div>
+      <div><dt>Sul</dt><dd data-borda="SUL">—</dd></div>
+      <div><dt>Oeste</dt><dd data-borda="OESTE">—</dd></div>
+    </dl>
+
+    <p class="painel__nota">
+      Protótipo de encaixe: sem turnos, sem meeples e sem pontuação.
+    </p>
+  </aside>
+
+</div>
+
+<div class="fim" data-fim hidden>
+  <div class="fim__painel">
+    <span class="fim__eyebrow">Fim do protótipo</span>
+    <p class="fim__texto" data-fim-texto></p>
+    <div class="fim__acoes">
+      <a class="fim__botao" href="index.html">Voltar ao início</a>
+    </div>
+  </div>
+</div>
+
+<script src="jogo.js"></script>
+</body>
+</html>

@@ -100,19 +100,34 @@
     render();
   }
 
-  function play() {
-    if (!isReady()) return;
+  async function play() {
+    if (!isReady() || state.started) return;
     state.started = true;
     render();
     el.back.focus();
 
-    document.dispatchEvent(new CustomEvent("carcassonne:start", {
-      detail: {
-        name: state.name.trim(),
-        mode: state.mode,
-        aiOpponents: config.aiOpponents
-      }
-    }));
+    const detail = {
+      name: state.name.trim(),
+      mode: state.mode,
+      aiOpponents: config.aiOpponents
+    };
+    document.dispatchEvent(new CustomEvent("carcassonne:start", { detail }));
+
+    // O modelo Java cria a partida; a tela de jogo só lê o estado pronto.
+    try {
+      const resposta = await fetch("/api/partida", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nome: detail.name, modo: detail.mode })
+      });
+      if (!resposta.ok) throw new Error("o servidor recusou a partida");
+      window.location.href = "jogo.html";
+    } catch (erro) {
+      state.started = false;
+      render();
+      el.hint.textContent =
+        "Não foi possível falar com o servidor. Rode ./run.sh e abra http://localhost:8080.";
+    }
   }
 
   function back() {
@@ -170,7 +185,7 @@
   background.addEventListener("load", () => {
     document.documentElement.classList.add("has-art");
   });
-  background.src = "assets/carcassoneimagemfinal.png";
+  background.src = "assets/marca/carcassoneimagemfinal.png";
 
   render();
 })();
