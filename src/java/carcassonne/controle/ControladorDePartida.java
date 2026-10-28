@@ -8,10 +8,14 @@ import carcassonne.modelo.Jogador;
 import carcassonne.modelo.Partida;
 import carcassonne.modelo.Peca;
 import carcassonne.modelo.Posicao;
+import carcassonne.modelo.Regiao;
+import carcassonne.modelo.Segmento;
 import carcassonne.modelo.Tabuleiro;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Orquestra a partida para a camada de Visao. Toda decisao de regra mora aqui
@@ -21,6 +25,7 @@ public class ControladorDePartida {
     private Partida partida;
     private Jogador jogador;
     private Peca pecaAtual;
+    private Jogada jogadaPendente;
     private String mensagem = "";
     private String modo = "ai";
 
@@ -35,6 +40,7 @@ public class ControladorDePartida {
                 Cor.VERMELHO, new EstrategiaHumana());
         partida.adicionarJogador(jogador);
         partida.iniciar();
+        jogadaPendente = null;
         mensagem = "";
         comprarProxima();
     }
@@ -63,9 +69,13 @@ public class ControladorDePartida {
         return modo;
     }
 
+    public synchronized Jogada getJogadaPendente() {
+        return jogadaPendente;
+    }
+
     /** RF02.4: gira a cartela na mao. As posicoes validas mudam junto. */
     public synchronized void rotacionar(boolean paraDireita) {
-        if (pecaAtual == null) {
+        if (pecaAtual == null || jogadaPendente != null) {
             return;
         }
         if (paraDireita) {
@@ -78,11 +88,11 @@ public class ControladorDePartida {
 
     /**
      * Tenta posicionar a cartela na coordenada indicada. Em caso de sucesso,
-     * registra a jogada e compra a proxima cartela.
+     * registra a jogada e aguarda a escolha opcional de meeple.
      * @return true se o encaixe era valido.
      */
     public synchronized boolean colocar(int x, int y) {
-        if (pecaAtual == null) {
+        if (pecaAtual == null || jogadaPendente != null) {
             return false;
         }
         Posicao posicao = new Posicao(x, y);
@@ -92,9 +102,72 @@ public class ControladorDePartida {
             return false;
         }
         partida.rodadaAtual().registrar(jogada);
+        jogadaPendente = jogada;
+        pecaAtual = null;
+        mensagem = "";
+        if (!jogadaPendente.temOpcaoDeSeguidor()) {
+            concluirJogada(-1);
+        }
+        return true;
+    }
+
+    /**
+     * Conclui a jogada alocando opcionalmente um meeple na peça recém-colocada,
+     * pontuando regiões fechadas e comprando a peça seguinte.
+     *
+     * @param indiceSegmento índice do segmento na peça, ou -1 para não alocar.
+     * @return true se a escolha era válida e a jogada foi concluída.
+     */
+    public synchronized boolean concluirJogada(int indiceSegmento) {
+        if (jogadaPendente == null) {
+            mensagem = "Coloque uma peça antes de concluir a jogada.";
+            return false;
+        }
+        if (indiceSegmento >= 0) {
+            List<Segmento> segmentos = jogadaPendente.getPeca().getSegmentos();
+            if (indiceSegmento >= segmentos.size()) {
+                mensagem = "O segmento escolhido não existe nesta peça.";
+                return false;
+            }
+            Segmento segmento = segmentos.get(indiceSegmento);
+            Regiao regiao = segmento.getRegiao();
+            if (regiao == null || regiao.estaOcupada()) {
+                mensagem = "Esta região já possui um meeple e não pode receber outro.";
+                return false;
+            }
+            jogadaPendente.setSegmentoEscolhido(segmento);
+            if (!jogadaPendente.colocarSeguidor()) {
+                mensagem = jogador.temMeepleDisponivel()
+                        ? "Não foi possível alocar o meeple neste segmento."
+                        : "Você não tem meeples disponíveis.";
+                return false;
+            }
+        } else if (indiceSegmento != -1) {
+            mensagem = "Índice de segmento inválido.";
+            return false;
+        }
+
+        jogadaPendente.pontuarRegioesConcluidas(partida.getTabuleiro());
+        jogadaPendente = null;
         mensagem = "";
         comprarProxima();
         return true;
+    }
+
+    /** @return segmentos distintos da peça recém-colocada para a escolha do meeple. */
+    public synchronized List<Segmento> segmentosDaJogadaPendente() {
+        if (jogadaPendente == null) {
+            return new ArrayList<>();
+        }
+        List<Segmento> disponiveis = new ArrayList<>();
+        Set<Regiao> visitadas = new HashSet<>();
+        for (Segmento segmento : jogadaPendente.getPeca().getSegmentos()) {
+            Regiao regiao = segmento.getRegiao();
+            if (regiao != null && visitadas.add(regiao)) {
+                disponiveis.add(segmento);
+            }
+        }
+        return disponiveis;
     }
 
     /**
@@ -107,6 +180,7 @@ public class ControladorDePartida {
             Peca peca = partida.comprarPeca();
             if (peca == null) {
                 pecaAtual = null;
+                partida.contagemFinal();
                 if (descartadas > 0) {
                     mensagem = textoDescarte(descartadas) + " O baralho acabou.";
                 }
@@ -159,6 +233,6 @@ public class ControladorDePartida {
 
     /** RF01.5: a partida acaba quando nao ha mais cartela jogavel. */
     public synchronized boolean encerrada() {
-        return partida == null || pecaAtual == null;
+        return partida == null || (pecaAtual == null && jogadaPendente == null);
     }
 }

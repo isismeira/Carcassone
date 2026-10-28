@@ -99,8 +99,12 @@ public abstract class Regiao {
         return !meeples.isEmpty();
     }
 
-    public void adicionarMeeple(Meeple meeple) {
+    public boolean adicionarMeeple(Meeple meeple) {
+        if (meeple == null || estaOcupada()) {
+            return false;
+        }
         meeples.add(meeple);
+        return true;
     }
 
     /** @return quantas cartelas distintas a regiao cobre. */

@@ -12,12 +12,20 @@ import java.util.List;
 public class Segmento {
     private final TipoTerreno tipo;
     private final List<Lado> lados;
+    private final double posicaoX;
+    private final double posicaoY;
     private Peca peca;
     private Regiao regiao;
 
     public Segmento(TipoTerreno tipo, List<Lado> lados) {
+        this(tipo, lados, 0.5, 0.5);
+    }
+
+    public Segmento(TipoTerreno tipo, List<Lado> lados, double posicaoX, double posicaoY) {
         this.tipo = tipo;
         this.lados = new ArrayList<>(lados);
+        this.posicaoX = posicaoX;
+        this.posicaoY = posicaoY;
     }
 
     public TipoTerreno getTipo() {
@@ -36,6 +44,16 @@ public class Segmento {
 
     public int quantidadeDeLados() {
         return lados.size();
+    }
+
+    /** Coordenada horizontal normalizada no desenho original da cartela. */
+    public double getPosicaoX() {
+        return posicaoX;
+    }
+
+    /** Coordenada vertical normalizada no desenho original da cartela. */
+    public double getPosicaoY() {
+        return posicaoY;
     }
 
     public Peca getPeca() {

@@ -164,7 +164,7 @@ public class Baralho {
                     unir(grupo, lado, vizinho);
                 }
             }
-            adicionarGrupos(resultado, grupo, codigo);
+            adicionarGrupos(resultado, grupo, codigo, setores, centro);
         }
         return resultado;
     }
@@ -198,7 +198,8 @@ public class Baralho {
         return lado;
     }
 
-    private static void adicionarGrupos(List<Segmento> resultado, int[] grupo, char codigo) {
+    private static void adicionarGrupos(
+            List<Segmento> resultado, int[] grupo, char codigo, String setores, char centro) {
         TipoTerreno tipo = switch (codigo) {
             case 'C' -> TipoTerreno.CIDADE;
             case 'E' -> TipoTerreno.ESTRADA;
@@ -209,13 +210,50 @@ public class Baralho {
                 continue;
             }
             List<Lado> lados = new ArrayList<>();
+            double somaX = 0;
+            double somaY = 0;
+            int setoresIncluidos = 0;
             for (int lado = 0; lado < 4; lado++) {
                 if (grupo[lado] != -1 && raiz(grupo, lado) == raiz) {
                     lados.add(Lado.values()[lado]);
+                    somaX += coordenadaSetor(lado)[0];
+                    somaY += coordenadaSetor(lado)[1];
+                    setoresIncluidos++;
                 }
             }
-            resultado.add(new Segmento(tipo, lados));
+            for (int lado = 0; lado < 4; lado++) {
+                int proximo = (lado + 1) % 4;
+                int canto = 4 + lado;
+                if (setores.charAt(canto) == codigo
+                        && grupo[lado] != -1 && grupo[proximo] != -1
+                        && raiz(grupo, lado) == raiz && raiz(grupo, proximo) == raiz) {
+                    somaX += coordenadaSetor(canto)[0];
+                    somaY += coordenadaSetor(canto)[1];
+                    setoresIncluidos++;
+                }
+            }
+            if (centro == codigo) {
+                somaX += 0.5;
+                somaY += 0.5;
+                setoresIncluidos++;
+            }
+            resultado.add(new Segmento(tipo, lados,
+                    somaX / setoresIncluidos, somaY / setoresIncluidos));
         }
+    }
+
+    private static double[] coordenadaSetor(int indice) {
+        return switch (indice) {
+            case 0 -> new double[] {0.5, 0};
+            case 1 -> new double[] {1, 0.5};
+            case 2 -> new double[] {0.5, 1};
+            case 3 -> new double[] {0, 0.5};
+            case 4 -> new double[] {0.75, 0.25};
+            case 5 -> new double[] {0.75, 0.75};
+            case 6 -> new double[] {0.25, 0.75};
+            case 7 -> new double[] {0.25, 0.25};
+            default -> new double[] {0.5, 0.5};
+        };
     }
 
     /** @return o catalogo bruto, usado pelos testes para conferir o total. */

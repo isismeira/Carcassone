@@ -2,8 +2,12 @@ package carcassonne.visao;
 
 import carcassonne.controle.ControladorDePartida;
 import carcassonne.modelo.Lado;
+import carcassonne.modelo.Meeple;
 import carcassonne.modelo.Peca;
 import carcassonne.modelo.Posicao;
+import carcassonne.modelo.Regiao;
+import carcassonne.modelo.Segmento;
+import carcassonne.modelo.TipoMeeple;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
@@ -11,9 +15,11 @@ import com.sun.net.httpserver.HttpHandler;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Traduz o estado do modelo para JSON e devolve as acoes da tela ao controlador.
@@ -43,6 +49,11 @@ public class ApiHandler implements HttpHandler {
                 case "/api/colocar" -> {
                     exigirPartida();
                     controlador.colocar(Json.inteiro(corpo, "x", 0), Json.inteiro(corpo, "y", 0));
+                    responderEstado(troca);
+                }
+                case "/api/meeple" -> {
+                    exigirPartida();
+                    controlador.concluirJogada(Json.inteiro(corpo, "segmento", -1));
                     responderEstado(troca);
                 }
                 case "/api/estado" -> {
@@ -92,6 +103,8 @@ public class ApiHandler implements HttpHandler {
                 "descartadas", controlador.getPartida().getBaralho().quantidadeDescartada()));
 
         estado.put("pecaAtual", descreverPecaAtual());
+        estado.put("aguardandoMeeple", controlador.getJogadaPendente() != null);
+        estado.put("segmentos", descreverSegmentosPendentes());
         estado.put("candidatas", descreverCandidatas());
         estado.put("tabuleiro", descreverTabuleiro());
         estado.put("encerrada", controlador.encerrada());
@@ -125,6 +138,24 @@ public class ApiHandler implements HttpHandler {
         return lista;
     }
 
+    private List<Object> descreverSegmentosPendentes() {
+        List<Object> lista = new ArrayList<>();
+        for (Segmento segmento : controlador.segmentosDaJogadaPendente()) {
+            Regiao regiao = segmento.getRegiao();
+            TipoMeeple papel = segmento.getTipo().papelDoMeeple();
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("indice", segmento.getPeca().getSegmentos().indexOf(segmento));
+            item.put("terreno", segmento.getTipo().name());
+            item.put("papel", papel.name());
+            item.put("ocupado", regiao.estaOcupada());
+            item.put("lados", segmento.getLados().stream().map(Enum::name).toList());
+            item.put("x", segmento.getPosicaoX());
+            item.put("y", segmento.getPosicaoY());
+            lista.add(item);
+        }
+        return lista;
+    }
+
     private List<Object> descreverTabuleiro() {
         List<Object> lista = new ArrayList<>();
         controlador.getPartida().getTabuleiro().getPecas().forEach((posicao, peca) -> {
@@ -135,8 +166,33 @@ public class ApiHandler implements HttpHandler {
             item.put("rotacao", peca.getRotacao());
             item.put("brasao", peca.temBrasao());
             item.put("inicial", peca.isInicial());
+            item.put("meeples", descreverMeeples(peca));
             lista.add(item);
         });
+        return lista;
+    }
+
+    private List<Object> descreverMeeples(Peca peca) {
+        List<Object> lista = new ArrayList<>();
+        Set<Meeple> incluidos = new HashSet<>();
+        for (Segmento segmento : peca.getSegmentos()) {
+            Regiao regiao = segmento.getRegiao();
+            if (regiao == null) {
+                continue;
+            }
+            for (Meeple meeple : regiao.getMeeples()) {
+                if (meeple.getSegmento().getPeca() != peca || !incluidos.add(meeple)) {
+                    continue;
+                }
+                Map<String, Object> item = new LinkedHashMap<>();
+                item.put("cor", meeple.getDono().getCor().name());
+                item.put("nome", meeple.getDono().getNome());
+                item.put("papel", meeple.getTipo().name());
+                item.put("x", meeple.getSegmento().getPosicaoX());
+                item.put("y", meeple.getSegmento().getPosicaoY());
+                lista.add(item);
+            }
+        }
         return lista;
     }
 }

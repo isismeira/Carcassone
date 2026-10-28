@@ -126,7 +126,7 @@
       state.started = false;
       render();
       el.hint.textContent =
-        "Não foi possível falar com o servidor. Rode ./run.sh e abra http://localhost:8080.";
+        "Não foi possível falar com o servidor. No Windows, rode .\\run.bat; no macOS/Linux, rode ./run.sh. Depois abra http://localhost:8080.";
     }
   }
 

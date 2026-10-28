@@ -2,7 +2,12 @@ package carcassonne;
 
 import carcassonne.controle.ControladorDePartida;
 import carcassonne.modelo.Baralho;
+import carcassonne.modelo.Cor;
+import carcassonne.modelo.EstrategiaHumana;
+import carcassonne.modelo.Jogada;
+import carcassonne.modelo.Jogador;
 import carcassonne.modelo.Lado;
+import carcassonne.modelo.Meeple;
 import carcassonne.modelo.Mosteiro;
 import carcassonne.modelo.Peca;
 import carcassonne.modelo.Posicao;
@@ -10,6 +15,7 @@ import carcassonne.modelo.Regiao;
 import carcassonne.modelo.Segmento;
 import carcassonne.modelo.Tabuleiro;
 import carcassonne.modelo.TipoTerreno;
+import carcassonne.modelo.TipoMeeple;
 
 import java.util.List;
 
@@ -27,12 +33,17 @@ public final class Testes {
         rotacaoGiraAsBordas();
         encaixeComparaTerrenos();
         segmentosDerivadosCorretamente();
+        segmentosMantemPosicaoLocalNaPeca();
         naoColocaIsoladaNemSobrepoe();
         candidatasDependemDaRotacao();
         estradaFechaNasDuasPontas();
+        meeplePontuaEVoltaAReserva();
+        fazendeiroNaoPodeDuplicarNaRegiaoConectada();
+        jogadaSemRegiaoLivreNaoOfereceMeeple();
         mosteiroFechaComOitoVizinhas();
         cidadeContaBrasao();
         descarteQuandoNaoCabe();
+        semMeeplesContinuaAutomaticamente();
         cartelaSemEncaixeEmLugarNenhum();
         nenhumaCartelaSeperde();
         desempenhoDeFechamento();
@@ -123,6 +134,28 @@ public final class Testes {
                 cantos == 1, "eram " + cantos);
     }
 
+    private static void segmentosMantemPosicaoLocalNaPeca() {
+        Peca cruzamento = acharNoBaralho("RoadJunctionLarge#1");
+        List<Segmento> estradas = cruzamento.getSegmentos().stream()
+                .filter(segmento -> segmento.getTipo() == TipoTerreno.ESTRADA)
+                .toList();
+        checar("cruzamento expõe uma posição local por estrada separada",
+                estradas.size() == 4
+                        && estradas.stream().map(Segmento::getPosicaoX).distinct().count() == 3
+                        && estradas.stream().map(Segmento::getPosicaoY).distinct().count() == 3,
+                estradas.stream().map(segmento -> segmento.getPosicaoX() + "," + segmento.getPosicaoY())
+                        .toList().toString());
+
+        Segmento norte = estradas.stream().filter(segmento -> segmento.ocupa(Lado.NORTE))
+                .findFirst().orElseThrow();
+        double x = norte.getPosicaoX();
+        double y = norte.getPosicaoY();
+        cruzamento.rotacionarDireita();
+        checar("posição local do meeple permanece alinhada à rotação visual da peça",
+                norte.ocupa(Lado.LESTE) && norte.getPosicaoX() == x && norte.getPosicaoY() == y,
+                norte.getLados() + " em " + norte.getPosicaoX() + "," + norte.getPosicaoY());
+    }
+
     private static void naoColocaIsoladaNemSobrepoe() {
         Tabuleiro tabuleiro = new Tabuleiro();
         tabuleiro.colocar(Baralho.criarPecaInicial(), new Posicao(0, 0));
@@ -177,6 +210,88 @@ public final class Testes {
                 estrada.calcularPontos(false) == 3, "valeu " + estrada.calcularPontos(false));
     }
 
+    private static void meeplePontuaEVoltaAReserva() {
+        Tabuleiro tabuleiro = new Tabuleiro();
+        Peca inicial = Baralho.criarPecaInicial();
+        Posicao posicaoInicial = new Posicao(0, 0);
+        tabuleiro.colocar(inicial, posicaoInicial);
+        Jogador jogador = new Jogador("Teste", Cor.VERMELHO, new EstrategiaHumana());
+        Jogada jogada = new Jogada(jogador, inicial, posicaoInicial, inicial.getRotacao());
+        Segmento estrada = inicial.getSegmentos().stream()
+                .filter(segmento -> segmento.getTipo() == TipoTerreno.ESTRADA)
+                .findFirst().orElseThrow();
+
+        jogada.setSegmentoEscolhido(estrada);
+        boolean alocado = jogada.colocarSeguidor();
+        Meeple meeple = jogada.getMeepleColocado();
+        checar("meeple alocado na estrada assume papel de ladrão e sai da reserva",
+                alocado && meeple.getTipo() == TipoMeeple.LADRAO
+                        && jogador.getMeeplesDisponiveis() == 6,
+                "alocado=" + alocado + ", papel=" + (meeple == null ? null : meeple.getTipo()));
+        jogada.setSegmentoEscolhido(estrada);
+        checar("região ocupada recusa um segundo meeple",
+                !jogada.colocarSeguidor() && jogador.getMeeplesDisponiveis() == 6,
+                "reserva=" + jogador.getMeeplesDisponiveis());
+
+        encaixarGirando(tabuleiro, acharNoBaralho("MonasteryRoad#1"), new Posicao(1, 0));
+        encaixarGirando(tabuleiro, acharNoBaralho("MonasteryRoad#2"), new Posicao(-1, 0));
+        int pontosDistribuidos = jogada.pontuarRegioesConcluidas(tabuleiro);
+        checar("estrada concluída pontua e devolve meeple à reserva",
+                pontosDistribuidos == 3 && jogador.getPontos() == 3
+                        && jogador.getMeeplesDisponiveis() == Jogador.MEEPLES_INICIAIS
+                        && estrada.getRegiao().getMeeples().isEmpty(),
+                "pontos=" + jogador.getPontos() + ", reserva=" + jogador.getMeeplesDisponiveis());
+    }
+
+    private static void jogadaSemRegiaoLivreNaoOfereceMeeple() {
+        Tabuleiro tabuleiro = new Tabuleiro();
+        Peca cidade = acharNoBaralho("CastleCenter#1");
+        Posicao posicao = new Posicao(0, 0);
+        tabuleiro.colocar(cidade, posicao);
+        Jogador jogador = new Jogador("Teste", Cor.VERMELHO, new EstrategiaHumana());
+        Jogada jogada = new Jogada(jogador, cidade, posicao, cidade.getRotacao());
+
+        Segmento cidadeOcupada = cidade.getSegmentos().get(0);
+        Jogador donoMeeple = new Jogador("Dono", Cor.AZUL, new EstrategiaHumana());
+        donoMeeple.retirarMeeple().ocupar(cidadeOcupada);
+
+        checar("jogada sem região livre não oferece alocação de meeple",
+                !jogada.temOpcaoDeSeguidor(),
+                "regiao ocupada=" + cidadeOcupada.getRegiao().estaOcupada());
+    }
+
+    private static void fazendeiroNaoPodeDuplicarNaRegiaoConectada() {
+        Tabuleiro tabuleiro = new Tabuleiro();
+        Peca primeira = acharNoBaralho("Monastery#1");
+        tabuleiro.colocar(primeira, new Posicao(0, 0));
+        Segmento campoInicial = primeira.getSegmentos().stream()
+                .filter(segmento -> segmento.getTipo() == TipoTerreno.CAMPO)
+                .findFirst().orElseThrow();
+
+        Jogador primeiroJogador = new Jogador("Primeiro", Cor.VERMELHO, new EstrategiaHumana());
+        Meeple primeiroFazendeiro = primeiroJogador.retirarMeeple();
+        boolean primeiroAlocado = primeiroFazendeiro.ocupar(campoInicial);
+
+        Peca segunda = acharNoBaralho("Monastery#2");
+        Posicao posicaoVizinha = new Posicao(1, 0);
+        boolean colocouPeca = tabuleiro.colocar(segunda, posicaoVizinha);
+        Segmento campoConectado = segunda.getSegmentos().stream()
+                .filter(segmento -> segmento.getTipo() == TipoTerreno.CAMPO)
+                .findFirst().orElseThrow();
+        Jogador segundoJogador = new Jogador("Segundo", Cor.AZUL, new EstrategiaHumana());
+        Jogada jogada = new Jogada(segundoJogador, segunda, posicaoVizinha, segunda.getRotacao());
+        jogada.setSegmentoEscolhido(campoConectado);
+
+        checar("fazendeiro existente bloqueia outro na regiao de campo conectada",
+                primeiroAlocado && colocouPeca
+                        && campoConectado.getRegiao() == campoInicial.getRegiao()
+                        && !jogada.colocarSeguidor()
+                        && segundoJogador.getMeeplesDisponiveis() == Jogador.MEEPLES_INICIAIS
+                        && campoInicial.getRegiao().getMeeples().size() == 1,
+                "meeples na regiao=" + campoInicial.getRegiao().getMeeples().size()
+                        + ", reserva do segundo=" + segundoJogador.getMeeplesDisponiveis());
+    }
+
     private static void mosteiroFechaComOitoVizinhas() {
         Tabuleiro tabuleiro = new Tabuleiro();
         Peca mosteiro = acharNoBaralho("Monastery#1");
@@ -223,11 +338,36 @@ public final class Testes {
         int restantesAntes = controlador.getPartida().getBaralho().quantidadeRestante();
         Posicao alvo = controlador.candidatas().get(0);
         boolean ok = controlador.colocar(alvo.getX(), alvo.getY());
-        checar("colocar numa candidata funciona e compra a proxima",
-                ok && controlador.getPartida().getBaralho().quantidadeRestante() < restantesAntes,
+        checar("colocar numa candidata aguarda escolha quando ha meeple e regiao livre",
+                ok && controlador.getJogadaPendente() != null
+                        && controlador.getPecaAtual() == null
+                        && controlador.getPartida().getBaralho().quantidadeRestante() == restantesAntes,
+                "ok=" + ok);
+        boolean concluiu = controlador.concluirJogada(-1);
+        checar("pular a alocacao conclui a jogada e compra a proxima peca",
+                concluiu && controlador.getJogadaPendente() == null
+                        && controlador.getPecaAtual() != null
+                        && controlador.getPartida().getBaralho().quantidadeRestante() < restantesAntes,
                 "ok=" + ok);
         checar("colocar em posicao invalida e recusado",
                 !controlador.colocar(99, 99), "aceitou (99,99)");
+    }
+
+    private static void semMeeplesContinuaAutomaticamente() {
+        ControladorDePartida controlador = new ControladorDePartida();
+        controlador.novaPartida("Reserva vazia", "ai");
+        for (int i = 0; i < Jogador.MEEPLES_INICIAIS; i++) {
+            controlador.getJogador().retirarMeeple();
+        }
+
+        int restantesAntes = controlador.getPartida().getBaralho().quantidadeRestante();
+        Posicao alvo = controlador.candidatas().get(0);
+        boolean colocou = controlador.colocar(alvo.getX(), alvo.getY());
+        checar("sem meeples a jogada continua automaticamente",
+                colocou && controlador.getJogadaPendente() == null
+                        && controlador.getPecaAtual() != null
+                        && controlador.getPartida().getBaralho().quantidadeRestante() < restantesAntes,
+                "colocou=" + colocou + ", pendente=" + (controlador.getJogadaPendente() != null));
     }
 
     /**
@@ -257,6 +397,10 @@ public final class Testes {
         ControladorDePartida controlador = new ControladorDePartida();
         controlador.novaPartida("Conservacao", "ai");
         while (!controlador.encerrada()) {
+            if (controlador.getJogadaPendente() != null) {
+                controlador.concluirJogada(-1);
+                continue;
+            }
             List<Posicao> candidatas = controlador.candidatas();
             if (candidatas.isEmpty()) {
                 break;
@@ -279,6 +423,10 @@ public final class Testes {
         controlador.novaPartida("Desempenho", "ai");
         int jogadas = 0;
         while (!controlador.encerrada() && jogadas < 72) {
+            if (controlador.getJogadaPendente() != null) {
+                controlador.concluirJogada(-1);
+                continue;
+            }
             List<Posicao> candidatas = controlador.candidatas();
             if (candidatas.isEmpty()) {
                 break;

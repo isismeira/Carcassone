@@ -32,13 +32,15 @@ public class Meeple {
         return segmento == null ? null : segmento.getTipo().papelDoMeeple();
     }
 
-    /** Coloca o meeple sobre um segmento e o registra na regiao correspondente. */
-    public void ocupar(Segmento segmento) {
+    /** Coloca o meeple sobre um segmento apenas se a regiao ainda estiver livre. */
+    public boolean ocupar(Segmento segmento) {
+        if (this.segmento != null || segmento == null || segmento.getRegiao() == null
+                || !segmento.getRegiao().adicionarMeeple(this)) {
+            return false;
+        }
         this.segmento = segmento;
         this.deitado = segmento.getTipo() == TipoTerreno.CAMPO;
-        if (segmento.getRegiao() != null) {
-            segmento.getRegiao().adicionarMeeple(this);
-        }
+        return true;
     }
 
     /** Devolve o meeple a reserva do dono (RF04.4). */

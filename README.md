@@ -5,7 +5,15 @@
 ./run.sh 9000     # ou em outra porta
 ```
 
-Só precisa de um JDK 17 ou mais novo — nenhuma dependência externa.
+No Windows, abra o PowerShell nesta pasta e use:
+
+```powershell
+.\run.bat         # compila e sobe em http://localhost:8080
+.\run.bat 9000    # ou em outra porta
+```
+
+Mantenha o terminal aberto enquanto joga e acesse o endereço mostrado. Só
+precisa de um JDK 17 ou mais novo — nenhuma dependência externa.
 
 Para conferir as regras do modelo sem abrir o navegador:
 
@@ -19,6 +27,7 @@ java -cp build carcassonne.Principal --testes
 ```
 .
 ├── run.sh                  compila e sobe o servidor
+├── run.bat                 inicializador equivalente para Windows
 ├── README.md
 ├── src/
 │   ├── java/               código Java
