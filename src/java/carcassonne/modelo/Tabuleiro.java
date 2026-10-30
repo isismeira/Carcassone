@@ -153,7 +153,31 @@ public class Tabuleiro {
                 estabelecida.fecharPontas(2);
             }
         }
+        ligarCamposNasQuinas(peca, posicao);
         ligarCamposACidades(peca);
+    }
+
+    private void ligarCamposNasQuinas(Peca peca, Posicao posicao) {
+        for (Segmento campo : peca.getSegmentos()) {
+            if (campo.getTipo() != TipoTerreno.CAMPO) {
+                continue;
+            }
+            for (Canto canto : campo.getCantos()) {
+                Peca diagonal = pecas.get(canto.vizinha(posicao));
+                if (diagonal == null) {
+                    continue;
+                }
+                Segmento campoDiagonal = diagonal.segmentoEm(canto.oposto());
+                if (campoDiagonal != null && campoDiagonal.getTipo() == TipoTerreno.CAMPO) {
+                    Regiao estabelecida = campoDiagonal.getRegiao();
+                    Regiao recemCriada = campo.getRegiao();
+                    if (estabelecida != recemCriada) {
+                        estabelecida.fundirCom(recemCriada);
+                        regioes.remove(recemCriada);
+                    }
+                }
+            }
+        }
     }
 
     /** Registra quais cidades cada campo da cartela alimenta, para o RF05.4. */

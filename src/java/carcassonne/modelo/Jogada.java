@@ -54,6 +54,7 @@ public class Jogada {
     /** @return true se a jogada oferece ao jogador ao menos uma regiao livre. */
     public boolean temOpcaoDeSeguidor() {
         return jogador.temMeepleDisponivel() && peca.getSegmentos().stream()
+                .filter(Segmento::permiteColocacaoDeMeeple)
                 .map(Segmento::getRegiao)
                 .filter(regiao -> regiao != null)
                 .distinct()
@@ -72,6 +73,7 @@ public class Jogada {
      */
     public boolean colocarSeguidor() {
         if (segmentoEscolhido == null || !peca.getSegmentos().contains(segmentoEscolhido)
+                || !segmentoEscolhido.permiteColocacaoDeMeeple()
                 || segmentoEscolhido.getRegiao() == null
                 || segmentoEscolhido.getRegiao().estaOcupada()
                 || !jogador.temMeepleDisponivel()) {

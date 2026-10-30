@@ -162,6 +162,9 @@ public class ControladorDePartida {
         List<Segmento> disponiveis = new ArrayList<>();
         Set<Regiao> visitadas = new HashSet<>();
         for (Segmento segmento : jogadaPendente.getPeca().getSegmentos()) {
+            if (!segmento.permiteColocacaoDeMeeple()) {
+                continue;
+            }
             Regiao regiao = segmento.getRegiao();
             if (regiao != null && visitadas.add(regiao)) {
                 disponiveis.add(segmento);

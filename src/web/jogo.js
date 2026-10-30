@@ -212,7 +212,9 @@
 
     for (const cartela of estado.tabuleiro) {
       const div = document.createElement("div");
-      div.className = "cartela" + (cartela.inicial ? " cartela--inicial" : "");
+      div.className = "cartela"
+        + (cartela.inicial ? " cartela--inicial" : "")
+        + (cartela.meeples.length ? " cartela--com-meeple" : "");
       div.style.left = `${cartela.x * lado}px`;
       div.style.top = `${cartela.y * lado}px`;
       div.style.backgroundImage = `url("assets/tiles/${cartela.imagem}")`;

@@ -187,7 +187,10 @@ body {
 
 .cartela--inicial {
   box-shadow: 0 0 0 3px var(--gold), 0 2px 10px rgba(0, 0, 0, 0.5);
-  z-index: 2;
+}
+
+.cartela--com-meeple {
+  z-index: 1;
 }
 
 .cartela__brasao {

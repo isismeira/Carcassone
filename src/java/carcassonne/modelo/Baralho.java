@@ -164,7 +164,7 @@ public class Baralho {
                     unir(grupo, lado, vizinho);
                 }
             }
-            adicionarGrupos(resultado, grupo, codigo, setores, centro);
+            adicionarGrupos(resultado, grupo, codigo, setores);
         }
         return resultado;
     }
@@ -199,7 +199,7 @@ public class Baralho {
     }
 
     private static void adicionarGrupos(
-            List<Segmento> resultado, int[] grupo, char codigo, String setores, char centro) {
+            List<Segmento> resultado, int[] grupo, char codigo, String setores) {
         TipoTerreno tipo = switch (codigo) {
             case 'C' -> TipoTerreno.CIDADE;
             case 'E' -> TipoTerreno.ESTRADA;
@@ -210,49 +210,56 @@ public class Baralho {
                 continue;
             }
             List<Lado> lados = new ArrayList<>();
+            List<Canto> cantos = new ArrayList<>();
             double somaX = 0;
             double somaY = 0;
-            int setoresIncluidos = 0;
             for (int lado = 0; lado < 4; lado++) {
                 if (grupo[lado] != -1 && raiz(grupo, lado) == raiz) {
                     lados.add(Lado.values()[lado]);
-                    somaX += coordenadaSetor(lado)[0];
-                    somaY += coordenadaSetor(lado)[1];
-                    setoresIncluidos++;
+                    double[] posicaoLado = coordenadaMeepleNoLado(Lado.values()[lado]);
+                    somaX += posicaoLado[0];
+                    somaY += posicaoLado[1];
                 }
             }
-            for (int lado = 0; lado < 4; lado++) {
-                int proximo = (lado + 1) % 4;
-                int canto = 4 + lado;
-                if (setores.charAt(canto) == codigo
-                        && grupo[lado] != -1 && grupo[proximo] != -1
-                        && raiz(grupo, lado) == raiz && raiz(grupo, proximo) == raiz) {
-                    somaX += coordenadaSetor(canto)[0];
-                    somaY += coordenadaSetor(canto)[1];
-                    setoresIncluidos++;
+            if (tipo == TipoTerreno.CAMPO) {
+                for (int lado = 0; lado < 4; lado++) {
+                    int proximo = (lado + 1) % 4;
+                    int canto = 4 + lado;
+                    int raizDoCanto = grupo[lado] != -1
+                            ? raiz(grupo, lado)
+                            : grupo[proximo] != -1 ? raiz(grupo, proximo) : -1;
+                    if (setores.charAt(canto) == codigo && raizDoCanto == raiz) {
+                        cantos.add(cantoDoSetor(lado));
+                    }
                 }
             }
-            if (centro == codigo) {
-                somaX += 0.5;
-                somaY += 0.5;
-                setoresIncluidos++;
+            double posicaoX = somaX / lados.size();
+            double posicaoY = somaY / lados.size();
+            if (posicaoX == 0.5 && posicaoY == 0.5) {
+                double[] posicaoLado = coordenadaMeepleNoLado(lados.get(0));
+                posicaoX = posicaoLado[0];
+                posicaoY = posicaoLado[1];
             }
-            resultado.add(new Segmento(tipo, lados,
-                    somaX / setoresIncluidos, somaY / setoresIncluidos));
+            resultado.add(new Segmento(tipo, lados, cantos, posicaoX, posicaoY));
         }
     }
 
-    private static double[] coordenadaSetor(int indice) {
-        return switch (indice) {
-            case 0 -> new double[] {0.5, 0};
-            case 1 -> new double[] {1, 0.5};
-            case 2 -> new double[] {0.5, 1};
-            case 3 -> new double[] {0, 0.5};
-            case 4 -> new double[] {0.75, 0.25};
-            case 5 -> new double[] {0.75, 0.75};
-            case 6 -> new double[] {0.25, 0.75};
-            case 7 -> new double[] {0.25, 0.25};
-            default -> new double[] {0.5, 0.5};
+    private static Canto cantoDoSetor(int lado) {
+        return switch (lado) {
+            case 0 -> Canto.NORDESTE;
+            case 1 -> Canto.SUDESTE;
+            case 2 -> Canto.SUDOESTE;
+            case 3 -> Canto.NOROESTE;
+            default -> throw new IllegalArgumentException("índice de lado inválido: " + lado);
+        };
+    }
+
+    private static double[] coordenadaMeepleNoLado(Lado lado) {
+        return switch (lado) {
+            case NORTE -> new double[] {0.5, 0.2};
+            case LESTE -> new double[] {0.8, 0.5};
+            case SUL -> new double[] {0.5, 0.8};
+            case OESTE -> new double[] {0.2, 0.5};
         };
     }
 

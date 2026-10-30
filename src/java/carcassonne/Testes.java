@@ -2,6 +2,7 @@ package carcassonne;
 
 import carcassonne.controle.ControladorDePartida;
 import carcassonne.modelo.Baralho;
+import carcassonne.modelo.Canto;
 import carcassonne.modelo.Cor;
 import carcassonne.modelo.EstrategiaHumana;
 import carcassonne.modelo.Jogada;
@@ -34,6 +35,9 @@ public final class Testes {
         encaixeComparaTerrenos();
         segmentosDerivadosCorretamente();
         segmentosMantemPosicaoLocalNaPeca();
+        meepleSoPodeFicarNasBordasOuNoMosteiro();
+        camposEmCurvasFicamSeparadosPelasEstradas();
+        camposQueSeEncontramEmQuinasSaoUnificados();
         naoColocaIsoladaNemSobrepoe();
         candidatasDependemDaRotacao();
         estradaFechaNasDuasPontas();
@@ -154,6 +158,104 @@ public final class Testes {
         checar("posição local do meeple permanece alinhada à rotação visual da peça",
                 norte.ocupa(Lado.LESTE) && norte.getPosicaoX() == x && norte.getPosicaoY() == y,
                 norte.getLados() + " em " + norte.getPosicaoX() + "," + norte.getPosicaoY());
+    }
+
+    private static void meepleSoPodeFicarNasBordasOuNoMosteiro() {
+        Peca campoCentral = new Peca("CampoCentral", "campo.png", false, false);
+        Segmento campo = new Segmento(TipoTerreno.CAMPO, List.of());
+        campoCentral.adicionarSegmento(campo);
+        Tabuleiro tabuleiro = new Tabuleiro();
+        tabuleiro.colocar(campoCentral, new Posicao(0, 0));
+        Jogador jogador = new Jogador("Teste", Cor.VERMELHO, new EstrategiaHumana());
+        Jogada jogadaCampo = new Jogada(jogador, campoCentral, new Posicao(0, 0), 0);
+        jogadaCampo.setSegmentoEscolhido(campo);
+
+        Peca pecaMosteiro = acharNoBaralho("Monastery#1");
+        Segmento mosteiro = pecaMosteiro.getSegmentos().stream()
+                .filter(segmento -> segmento.getTipo() == TipoTerreno.MOSTEIRO)
+                .findFirst().orElseThrow();
+        Tabuleiro tabuleiroMosteiro = new Tabuleiro();
+        tabuleiroMosteiro.colocar(pecaMosteiro, new Posicao(0, 0));
+        Jogada jogadaMosteiro = new Jogada(jogador, pecaMosteiro, new Posicao(0, 0), 0);
+        jogadaMosteiro.setSegmentoEscolhido(mosteiro);
+
+        checar("campo sem lado não oferece nem aceita meeple",
+                !jogadaCampo.temOpcaoDeSeguidor() && !jogadaCampo.colocarSeguidor(),
+                "aceitou meeple em campo sem lado");
+        checar("mosteiro permite meeple no centro",
+                tabuleiroMosteiro.pecaEm(new Posicao(0, 0)) == pecaMosteiro
+                        && mosteiro.getLados().isEmpty() && jogadaMosteiro.colocarSeguidor(),
+                "mosteiro recusou meeple central");
+
+        Peca estradaReta = acharNoBaralho("Road#1");
+        Segmento estrada = estradaReta.getSegmentos().stream()
+                .filter(segmento -> segmento.getTipo() == TipoTerreno.ESTRADA)
+                .findFirst().orElseThrow();
+        checar("estrada reta posiciona meeple fora do centro da peça",
+                estrada.getPosicaoX() != 0.5 || estrada.getPosicaoY() != 0.5,
+                estrada.getPosicaoX() + "," + estrada.getPosicaoY());
+    }
+
+    private static void camposEmCurvasFicamSeparadosPelasEstradas() {
+        Peca curva = acharNoBaralho("RoadCurve#1");
+        List<Segmento> campos = curva.getSegmentos().stream()
+                .filter(segmento -> segmento.getTipo() == TipoTerreno.CAMPO)
+                .toList();
+        Segmento campo = campos.stream()
+                .filter(segmento -> segmento.ocupa(Lado.NORTE))
+                .findFirst().orElse(null);
+
+        checar("campo da curva fica acessível pelos lados sem atravessar a estrada",
+                campos.size() == 1 && campo != null
+                && campo.ocupa(Lado.LESTE)
+                && !campo.ocupa(Lado.SUL)
+                && !campo.ocupa(Lado.OESTE)
+                && (campo.getPosicaoX() != 0.5 || campo.getPosicaoY() != 0.5),
+                campos.stream().map(segmento -> segmento.getLados().toString()).toList().toString());
+
+        Segmento campoNorte = curva.segmentoEm(Canto.NOROESTE);
+        curva.rotacionarDireita();
+        checar("quinas dos campos giram junto com a cartela",
+                campoNorte.ocupa(Canto.NORDESTE)
+                        && campoNorte.ocupa(Lado.LESTE),
+                campoNorte.getCantos() + " / " + campoNorte.getLados());
+    }
+
+    private static void camposQueSeEncontramEmQuinasSaoUnificados() {
+        Tabuleiro tabuleiro = new Tabuleiro();
+        Peca primeiraCurva = acharNoBaralho("RoadCurve#1");
+        Posicao primeiraPosicao = new Posicao(0, 0);
+        tabuleiro.colocar(primeiraCurva, primeiraPosicao);
+
+        Peca estradaReta = acharNoBaralho("Road#1");
+        Posicao estradaPosicao = new Posicao(1, 0);
+        checar("estrada conecta as duas peças usadas no teste de quina",
+                tabuleiro.colocar(estradaReta, estradaPosicao),
+                "estrada não foi colocada");
+
+        Peca segundaCurva = acharNoBaralho("RoadCurve#2");
+        segundaCurva.rotacionarDireita();
+        segundaCurva.rotacionarDireita();
+        Posicao segundaPosicao = new Posicao(1, 1);
+        checar("segunda curva encaixa abaixo da estrada",
+                tabuleiro.colocar(segundaCurva, segundaPosicao),
+                "segunda curva não foi colocada");
+
+        Segmento campoPrimeiro = primeiraCurva.segmentoEm(Canto.SUDESTE);
+        Segmento campoSegundo = segundaCurva.segmentoEm(Canto.NOROESTE);
+        Jogador jogador = new Jogador("Teste", Cor.VERMELHO, new EstrategiaHumana());
+        Meeple fazendeiro = jogador.retirarMeeple();
+        boolean alocado = fazendeiro.ocupar(campoPrimeiro);
+        Jogada jogada = new Jogada(jogador, segundaCurva, segundaPosicao, segundaCurva.getRotacao());
+        jogada.setSegmentoEscolhido(campoSegundo);
+
+        checar("campos unidos diagonalmente impedem um segundo fazendeiro",
+                campoPrimeiro.getRegiao() == campoSegundo.getRegiao()
+                        && alocado && !jogada.colocarSeguidor()
+                        && jogador.getMeeplesDisponiveis() == Jogador.MEEPLES_INICIAIS - 1
+                        && campoPrimeiro.getRegiao().getMeeples().size() == 1,
+                "mesmo campo=" + (campoPrimeiro.getRegiao() == campoSegundo.getRegiao())
+                        + ", meeples=" + campoPrimeiro.getRegiao().getMeeples().size());
     }
 
     private static void naoColocaIsoladaNemSobrepoe() {
