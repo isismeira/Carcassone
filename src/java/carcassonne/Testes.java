@@ -206,7 +206,7 @@ public final class Testes {
                 .findFirst().orElse(null);
 
         checar("campo da curva fica acessível pelos lados sem atravessar a estrada",
-                campos.size() == 1 && campo != null
+                campos.size() == 2 && campo != null
                 && campo.ocupa(Lado.LESTE)
                 && !campo.ocupa(Lado.SUL)
                 && !campo.ocupa(Lado.OESTE)
@@ -214,6 +214,11 @@ public final class Testes {
                 campos.stream().map(segmento -> segmento.getLados().toString()).toList().toString());
 
         Segmento campoNorte = curva.segmentoEm(Canto.NOROESTE);
+        Segmento campoSudoeste = curva.segmentoEm(Canto.SUDOESTE);
+        checar("quina sem lado de campo forma um segmento de campo proprio",
+                campoNorte != null && campoSudoeste != null && campoNorte != campoSudoeste
+                        && campoSudoeste.getLados().isEmpty(),
+                String.valueOf(campoSudoeste));
         curva.rotacionarDireita();
         checar("quinas dos campos giram junto com a cartela",
                 campoNorte.ocupa(Canto.NORDESTE)
