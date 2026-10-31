@@ -38,6 +38,8 @@ public final class Testes {
         meepleSoPodeFicarNasBordasOuNoMosteiro();
         camposEmCurvasFicamSeparadosPelasEstradas();
         camposQueSeEncontramEmQuinasSaoUnificados();
+        camposDosDoisLadosDaEstradaAtravessamABorda();
+        camposSoNaDiagonalNaoSeUnem();
         naoColocaIsoladaNemSobrepoe();
         candidatasDependemDaRotacao();
         estradaFechaNasDuasPontas();
@@ -254,13 +256,71 @@ public final class Testes {
         Jogada jogada = new Jogada(jogador, segundaCurva, segundaPosicao, segundaCurva.getRotacao());
         jogada.setSegmentoEscolhido(campoSegundo);
 
-        checar("campos unidos diagonalmente impedem um segundo fazendeiro",
+        checar("campos unidos pela borda de estrada impedem um segundo fazendeiro",
                 campoPrimeiro.getRegiao() == campoSegundo.getRegiao()
                         && alocado && !jogada.colocarSeguidor()
                         && jogador.getMeeplesDisponiveis() == Jogador.MEEPLES_INICIAIS - 1
                         && campoPrimeiro.getRegiao().getMeeples().size() == 1,
                 "mesmo campo=" + (campoPrimeiro.getRegiao() == campoSegundo.getRegiao())
                         + ", meeples=" + campoPrimeiro.getRegiao().getMeeples().size());
+    }
+
+    /**
+     * Estrada leste-oeste continuando para leste: o campo ao sul da primeira
+     * cartela encosta no campo ao sul da seguinte pela metade da borda de estrada.
+     */
+    private static void camposDosDoisLadosDaEstradaAtravessamABorda() {
+        Tabuleiro tabuleiro = new Tabuleiro();
+        Peca inicial = Baralho.criarPecaInicial();
+        tabuleiro.colocar(inicial, new Posicao(0, 0));
+        Peca primeira = acharNoBaralho("Road#1");
+        primeira.rotacionarDireita();
+        Posicao primeiraPosicao = new Posicao(1, 0);
+        tabuleiro.colocar(primeira, primeiraPosicao);
+        Peca segunda = acharNoBaralho("Road#2");
+        segunda.rotacionarDireita();
+        Posicao segundaPosicao = new Posicao(2, 0);
+        tabuleiro.colocar(segunda, segundaPosicao);
+
+        Segmento campoInicial = inicial.segmentoEm(Lado.SUL);
+        Segmento campoPrimeira = primeira.segmentoEm(Lado.SUL);
+        Segmento campoSegunda = segunda.segmentoEm(Lado.SUL);
+        Jogador jogador = new Jogador("Teste", Cor.VERMELHO, new EstrategiaHumana());
+        Jogada primeiraJogada = new Jogada(jogador, primeira, primeiraPosicao, primeira.getRotacao());
+        primeiraJogada.setSegmentoEscolhido(campoPrimeira);
+        boolean alocado = primeiraJogada.colocarSeguidor();
+        Jogada segundaJogada = new Jogada(jogador, segunda, segundaPosicao, segunda.getRotacao());
+        segundaJogada.setSegmentoEscolhido(campoSegunda);
+
+        checar("campo atravessa a borda de estrada e bloqueia segundo fazendeiro (RF04.3)",
+                campoInicial.getRegiao() == campoPrimeira.getRegiao()
+                        && campoPrimeira.getRegiao() == campoSegunda.getRegiao()
+                        && alocado && !segundaJogada.colocarSeguidor()
+                        && campoPrimeira.getRegiao().getMeeples().size() == 1,
+                "inicial=primeira: " + (campoInicial.getRegiao() == campoPrimeira.getRegiao())
+                        + ", primeira=segunda: " + (campoPrimeira.getRegiao() == campoSegunda.getRegiao()));
+    }
+
+    /**
+     * Duas muralhas que so se tocam pela quina, com a cidade da cartela entre
+     * elas ocupando aquele canto: os campos continuam separados.
+     */
+    private static void camposSoNaDiagonalNaoSeUnem() {
+        Tabuleiro tabuleiro = new Tabuleiro();
+        Peca cidadeNoCanto = acharNoBaralho("CastleEdge#1");
+        cidadeNoCanto.rotacionarDireita(); // cidade a leste e ao sul
+        tabuleiro.colocar(cidadeNoCanto, new Posicao(0, -1));
+        Peca muralhaAoNorte = acharNoBaralho("CastleWall#1");
+        tabuleiro.colocar(muralhaAoNorte, new Posicao(0, 0));
+        Peca muralhaAOeste = acharNoBaralho("CastleWall#2");
+        muralhaAOeste.rotacionarEsquerda();
+        tabuleiro.colocar(muralhaAOeste, new Posicao(1, -1));
+
+        Segmento campoAbaixo = muralhaAoNorte.segmentoEm(Canto.NORDESTE);
+        Segmento campoAoLado = muralhaAOeste.segmentoEm(Canto.SUDOESTE);
+        checar("campos que so se tocam na diagonal ficam separados",
+                campoAbaixo.getRegiao() != campoAoLado.getRegiao(),
+                "os dois campos viraram a mesma regiao");
     }
 
     private static void naoColocaIsoladaNemSobrepoe() {

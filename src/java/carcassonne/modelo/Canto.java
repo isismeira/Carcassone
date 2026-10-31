@@ -1,5 +1,7 @@
 package carcassonne.modelo;
 
+import java.util.List;
+
 /** Quina de uma cartela, usada para conectar campos que se encontram no tabuleiro. */
 public enum Canto {
     NOROESTE,
@@ -7,12 +9,28 @@ public enum Canto {
     SUDESTE,
     SUDOESTE;
 
-    public Canto oposto() {
+    /** @return os dois lados da cartela que se encontram nesta quina. */
+    public List<Lado> lados() {
         return switch (this) {
-            case NOROESTE -> SUDESTE;
-            case NORDESTE -> SUDOESTE;
-            case SUDESTE -> NOROESTE;
-            case SUDOESTE -> NORDESTE;
+            case NOROESTE -> List.of(Lado.NORTE, Lado.OESTE);
+            case NORDESTE -> List.of(Lado.NORTE, Lado.LESTE);
+            case SUDESTE -> List.of(Lado.SUL, Lado.LESTE);
+            case SUDOESTE -> List.of(Lado.SUL, Lado.OESTE);
+        };
+    }
+
+    /**
+     * @param lado um dos dois lados desta quina.
+     * @return a quina da cartela vizinha naquele lado que encosta nesta,
+     *         espelhada pela borda compartilhada.
+     */
+    public Canto espelhadoEm(Lado lado) {
+        boolean bordaHorizontal = lado == Lado.NORTE || lado == Lado.SUL;
+        return switch (this) {
+            case NOROESTE -> bordaHorizontal ? SUDOESTE : NORDESTE;
+            case NORDESTE -> bordaHorizontal ? SUDESTE : NOROESTE;
+            case SUDESTE -> bordaHorizontal ? NORDESTE : SUDOESTE;
+            case SUDOESTE -> bordaHorizontal ? NOROESTE : SUDESTE;
         };
     }
 
@@ -31,15 +49,6 @@ public enum Canto {
             case NORDESTE -> NOROESTE;
             case SUDESTE -> NORDESTE;
             case SUDOESTE -> SUDESTE;
-        };
-    }
-
-    public Posicao vizinha(Posicao posicao) {
-        return switch (this) {
-            case NOROESTE -> new Posicao(posicao.getX() - 1, posicao.getY() - 1);
-            case NORDESTE -> new Posicao(posicao.getX() + 1, posicao.getY() - 1);
-            case SUDESTE -> new Posicao(posicao.getX() + 1, posicao.getY() + 1);
-            case SUDOESTE -> new Posicao(posicao.getX() - 1, posicao.getY() + 1);
         };
     }
 }
