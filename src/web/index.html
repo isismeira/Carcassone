@@ -92,6 +92,40 @@
         <button class="ghost" type="button" data-back>Voltar</button>
       </div>
 
+      <section class="view info view--info" data-view="how" aria-labelledby="how-title" hidden>
+        <h1 class="info__title" id="how-title" tabindex="-1">Como jogar</h1>
+        <div class="info__body">
+          <p>Cada jogador inicia o jogo com uma reserva de 7 Meeples para utilizar no tabuleiro. A cada turno, a peça do topo do baralho é comprada. Caso ela não possua nenhum posicionamento válido, ela é descartada e uma nova peça é comprada automaticamente.
+          <p>O jogador pode rotacionar a peça (Cidade, Estrada, Mosteiro ou Campo) em ângulos de 90°. É validado se a posição escolhida possui espaço livre e é adjacente a pelo menos uma peça já colocada. Todos os lados conectados (Norte, Sul, Leste, Oeste) devem coincidir perfeitamente com os tipos de terrenos das peças vizinhas.</p>
+          <p>O papel do Meeple é definido pelo segmento onde foi alocado: Ladrão na estrada, Cavaleiro na cidade, Monge no mosteiro e Fazendeiro no campo.</p>
+          <p>Ao concluir uma região (Estrada, Cidade ou Mosteiro), os Meeples pontuam e retornam imediatamente à reserva. A única exceção são os Fazendeiros nos campos, que permanecem no tabuleiro até o fim da partida.</p>
+          <p>A partida encerra automaticamente quando o baralho/pilha de peças estiver totalmente vazio e o último jogador não puder mais realizar jogadas válidas.</p>
+        </div>
+        <nav class="info__actions" aria-label="Navegação das informações">
+          <button class="ghost" type="button" data-info-back>Voltar</button>
+          <button class="ghost" type="button" data-info-page="rules">Regras &amp; pontuação</button>
+        </nav>
+      </section>
+
+      <section class="view info view--info" data-view="rules" aria-labelledby="rules-title" hidden>
+        <h1 class="info__title" id="rules-title" tabindex="-1">Regras &amp; pontuação</h1>
+        <div class="info__body">
+          <p>A pontuação total é atribuída ao jogador com o maior número de Meeples na região. Em caso de empate, todos os jogadores empatados recebem a pontuação integral.</p>
+          <p>Estrada Concluída: 1 ponto por peça que compõe a estrada.
+          <br>Cidade Concluída: 2 pontos por peça + 2 pontos extras por cada Brasão existente na cidade.
+          <br>Mosteiro Concluído: 9 pontos no total (1 ponto da peça do mosteiro + 8 pontos das peças ao redor).</p>
+          <p>A partida encerra automaticamente quando o baralho/pilha de peças estiver totalmente vazio e o último jogador não puder mais realizar jogadas válidas.</p>
+          <p>Estradas Incompletas: 1 ponto por peça.
+          <br>Cidades Incompletas: 1 ponto por peça + 1 ponto por brasão.
+          <br>Mosteiros Incompletos: 1 ponto pela peça do mosteiro + 1 ponto por cada peça vizinha.
+          <br>Campos (Fazendas): 3 pontos para cada Cidade Concluída adjacente ao campo contínuo.</p>
+        </div>
+        <nav class="info__actions" aria-label="Navegação das informações">
+          <button class="ghost" type="button" data-info-back>Voltar</button>
+          <button class="ghost" type="button" data-info-page="how">Como jogar</button>
+        </nav>
+      </section>
+
     </section>
 
   </div>

@@ -196,6 +196,58 @@ body {
 
 .view[hidden] { display: none; }
 
+.view--reserved { visibility: hidden; }
+
+.view--info {
+  position: absolute;
+  inset: 34px 32px 30px;
+  gap: 16px;
+}
+
+.info__title {
+  margin: 0;
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: clamp(20px, 4vw, 26px);
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+  color: var(--blue);
+}
+
+.info__title:focus { outline: none; }
+
+.info__body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px;
+  background: var(--parchment-light);
+  border: 2px solid var(--leather-soft);
+  border-radius: 3px;
+  box-shadow: inset 0 2px 6px rgba(120, 88, 44, 0.18);
+  font-size: 19px;
+}
+
+.info__placeholder {
+  margin: 0;
+  color: var(--muted);
+  font-size: 18px;
+  font-style: italic;
+  text-align: center;
+}
+
+.info__actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.info__actions .ghost {
+  margin-top: 0;
+  padding: 10px 14px;
+  letter-spacing: 0.06em;
+}
+
 
 .field {
   display: flex;
@@ -358,13 +410,15 @@ body {
 
 .hint {
   margin: 0;
+  min-height: 1.4em;
   font-size: 16px;
   font-style: italic;
+  line-height: 1.2;
   text-align: center;
   color: var(--muted);
 }
 
-.hint:empty { display: none; }
+.hint:empty { visibility: hidden; }
 
 
 .links {
@@ -440,7 +494,12 @@ body {
 @media (max-width: 560px) {
   .scene { padding: 32px 16px; }
   .panel { padding: 26px 18px 22px; }
+  .view--info { inset: 26px 18px 22px; gap: 12px; }
+  .info__body { padding: 12px; }
+  .info__actions { gap: 8px; }
+  .info__actions .ghost { padding: 9px 10px; font-size: 13px; letter-spacing: 0.04em; }
   .view { gap: 22px; }
+  .hint { min-height: 3.6em; }
   .modes { gap: 8px; }
   .mode { padding: 14px 6px 12px; gap: 8px; }
   .mode__name { font-size: 13px; }

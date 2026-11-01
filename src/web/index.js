@@ -26,7 +26,7 @@
     aiOpponents: readInt(params.get("ai"), DEFAULTS.aiOpponents, 1, 4)
   };
 
-  const state = { name: "", mode: null, started: false };
+  const state = { name: "", mode: null, started: false, page: "setup" };
 
   const el = {
     mist: document.querySelector("[data-mist]"),
@@ -40,6 +40,10 @@
     links: document.querySelector("[data-links]"),
     setup: document.querySelector('[data-view="setup"]'),
     start: document.querySelector('[data-view="start"]'),
+    infoHow: document.querySelector('[data-view="how"]'),
+    infoRules: document.querySelector('[data-view="rules"]'),
+    infoBackButtons: Array.from(document.querySelectorAll("[data-info-back]")),
+    infoPageButtons: Array.from(document.querySelectorAll("[data-info-page]")),
     startName: document.querySelector("[data-start-name]"),
     summary: document.querySelector("[data-summary]"),
     back: document.querySelector("[data-back]")
@@ -76,8 +80,14 @@
 
 
   function render() {
+    const showingInfo = state.page === "how" || state.page === "rules";
     el.setup.hidden = state.started;
+    el.setup.classList.toggle("view--reserved", showingInfo);
+    el.setup.setAttribute("aria-hidden", String(showingInfo));
+    el.setup.inert = showingInfo;
     el.start.hidden = !state.started;
+    el.infoHow.hidden = state.started || state.page !== "how";
+    el.infoRules.hidden = state.started || state.page !== "rules";
 
     el.modeButtons.forEach((button) => {
       const selected = button.dataset.mode === state.mode;
@@ -132,6 +142,20 @@
 
   function back() {
     state.started = false;
+    state.page = "setup";
+    render();
+    el.name.focus();
+  }
+
+  function showInfo(page) {
+    if (page !== "how" && page !== "rules") return;
+    state.page = page;
+    render();
+    (page === "how" ? el.infoHow : el.infoRules).querySelector(".info__title").focus();
+  }
+
+  function backToSetup() {
+    state.page = "setup";
     render();
     el.name.focus();
   }
@@ -167,7 +191,14 @@
 
   el.links.addEventListener("click", (event) => {
     const link = event.target.closest("a[data-link]");
-    if (link) event.preventDefault();
+    if (!link) return;
+    event.preventDefault();
+    showInfo(link.dataset.link);
+  });
+
+  el.infoBackButtons.forEach((button) => button.addEventListener("click", backToSetup));
+  el.infoPageButtons.forEach((button) => {
+    button.addEventListener("click", () => showInfo(button.dataset.infoPage));
   });
 
   if (!config.mistEnabled) el.mist.remove();
