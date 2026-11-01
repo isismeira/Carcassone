@@ -40,6 +40,7 @@ public final class Testes {
         camposQueSeEncontramEmQuinasSaoUnificados();
         camposDosDoisLadosDaEstradaAtravessamABorda();
         camposSoNaDiagonalNaoSeUnem();
+        faixaDeCampoEntreCidadeEEstradaEUmCampoSo();
         naoColocaIsoladaNemSobrepoe();
         candidatasDependemDaRotacao();
         estradaFechaNasDuasPontas();
@@ -321,6 +322,44 @@ public final class Testes {
         checar("campos que so se tocam na diagonal ficam separados",
                 campoAbaixo.getRegiao() != campoAoLado.getRegiao(),
                 "os dois campos viraram a mesma regiao");
+    }
+
+    /**
+     * Nas cartelas com muralha e estrada, a faixa de campo entre a cidade e a
+     * estrada atravessa a cartela inteira. Tabuleiro montado a partir de uma
+     * partida real em que tres pares de fazendeiros dividiam o mesmo campo.
+     */
+    private static void faixaDeCampoEntreCidadeEEstradaEUmCampoSo() {
+        Tabuleiro tabuleiro = new Tabuleiro();
+        tabuleiro.colocar(Baralho.criarPecaInicial(), new Posicao(0, 0));
+        Peca cruzamento = colocarNoTabuleiro(tabuleiro, "RoadJunctionSmall#1", 0, -1, 0);
+        Peca curva = colocarNoTabuleiro(tabuleiro, "RoadCurve#1", 0, 1, 0);
+        Peca estradaOeste = colocarNoTabuleiro(tabuleiro, "Road#1", 0, -1, 1);
+        Peca estradaLeste = colocarNoTabuleiro(tabuleiro, "Road#2", 0, 1, 1);
+        colocarNoTabuleiro(tabuleiro, "CastleWallCurveLeft#1", 2, -1, 2);
+        Peca muralhaComCurva = colocarNoTabuleiro(tabuleiro, "CastleWallCurveLeft#2", 0, 0, 2);
+        Peca estradaSul = colocarNoTabuleiro(tabuleiro, "Road#3", 0, 0, 3);
+
+        Jogador jogador = new Jogador("Teste", Cor.VERMELHO, new EstrategiaHumana());
+        Segmento[][] pares = {
+            {cruzamento.segmentoEm(Lado.NORTE), curva.segmentoEm(Lado.NORTE)},
+            {estradaLeste.segmentoEm(Lado.OESTE), muralhaComCurva.segmentoEm(Lado.LESTE)},
+            {estradaOeste.segmentoEm(Lado.OESTE), estradaSul.segmentoEm(Lado.OESTE)}
+        };
+        boolean todosBloqueados = true;
+        StringBuilder detalhe = new StringBuilder();
+        for (Segmento[] par : pares) {
+            boolean alocado = jogador.retirarMeeple().ocupar(par[0]);
+            todosBloqueados &= alocado && par[1].estaOcupado();
+            detalhe.append(par[1].estaOcupado()).append(" ");
+        }
+        checar("faixa entre cidade e estrada liga os campos e bloqueia o segundo fazendeiro",
+                todosBloqueados, "segundo campo ocupado por par: " + detalhe.toString().trim());
+        checar("os tres campos do tabuleiro continuam distintos entre si",
+                pares[0][0].getRegiao() != pares[1][0].getRegiao()
+                        && pares[1][0].getRegiao() != pares[2][0].getRegiao()
+                        && pares[0][0].getRegiao() != pares[2][0].getRegiao(),
+                "campos foram fundidos demais");
     }
 
     private static void naoColocaIsoladaNemSobrepoe() {
@@ -630,6 +669,17 @@ public final class Testes {
             }
         }
         throw new IllegalArgumentException("cartela inexistente no catalogo: " + id);
+    }
+
+    private static Peca colocarNoTabuleiro(Tabuleiro tabuleiro, String id, int giros, int x, int y) {
+        Peca peca = acharNoBaralho(id);
+        for (int i = 0; i < giros; i++) {
+            peca.rotacionarDireita();
+        }
+        if (!tabuleiro.colocar(peca, new Posicao(x, y))) {
+            throw new IllegalStateException(id + " nao encaixa em (" + x + "," + y + ")");
+        }
+        return peca;
     }
 
     private static String bordas(Peca peca) {
