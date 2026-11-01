@@ -34,14 +34,13 @@
           <span class="field__label" id="mode-label">Formato da partida</span>
           <div class="modes" role="radiogroup" aria-labelledby="mode-label" data-modes>
 
-            <button class="mode mode--unavailable" type="button" role="radio" aria-checked="false"
-                    tabindex="-1" disabled aria-describedby="ai-unavailable">
+            <button class="mode" type="button" role="radio" aria-checked="false" tabindex="-1" data-mode="ai">
               <span class="mode__meeples" aria-hidden="true">
-                <span class="meeple meeple--grey"></span>
+                <span class="meeple meeple--red"></span>
                 <span class="meeple meeple--grey"></span>
               </span>
-              <span class="mode__name">Contra IAs</span>
-              <span class="mode__availability" id="ai-unavailable">Em breve</span>
+              <span class="mode__name">Jogador contra IA</span>
+              <span class="mode__ring" aria-hidden="true"></span>
             </button>
 
             <button class="mode" type="button" role="radio" aria-checked="false" tabindex="0" data-mode="human">
@@ -54,6 +53,53 @@
               <span class="mode__ring" aria-hidden="true"></span>
             </button>
 
+          </div>
+        </div>
+
+        <div class="field" data-ai-config hidden>
+          <div class="player-counts">
+            <label class="player-count">
+              <span class="field__label">Jogadores humanos</span>
+              <select class="field__input" data-human-count aria-label="Quantidade de jogadores humanos">
+                <option value="1" selected>1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+              </select>
+            </label>
+            <label class="player-count">
+              <span class="field__label">Inteligências artificiais</span>
+              <select class="field__input" data-ai-count aria-label="Quantidade de inteligências artificiais">
+                <option value="1" selected>1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+              </select>
+            </label>
+          </div>
+          <p class="player-count-hint">Escolha de 1 a 4 humanos e de 1 a 4 IAs. O total da partida deve ficar entre 2 e 5 participantes.</p>
+          <span class="field__label" id="ai-players-label">Nomes dos jogadores</span>
+          <div class="player-fields__list" role="group" aria-labelledby="ai-players-label">
+            <label class="player-field" data-human-field>
+              <span class="player-field__name"><span class="meeple meeple--red" aria-hidden="true"></span> Jogador 1</span>
+              <input class="field__input" data-human-name type="text" maxlength="18"
+                     placeholder="Nome do jogador 1" autocomplete="off" spellcheck="false">
+            </label>
+            <label class="player-field" data-human-field hidden>
+              <span class="player-field__name"><span class="meeple meeple--blue" aria-hidden="true"></span> Jogador 2</span>
+              <input class="field__input" data-human-name type="text" maxlength="18"
+                     placeholder="Nome do jogador 2" autocomplete="off" spellcheck="false">
+            </label>
+            <label class="player-field" data-human-field hidden>
+              <span class="player-field__name"><span class="meeple meeple--green" aria-hidden="true"></span> Jogador 3</span>
+              <input class="field__input" data-human-name type="text" maxlength="18"
+                     placeholder="Nome do jogador 3" autocomplete="off" spellcheck="false">
+            </label>
+            <label class="player-field" data-human-field hidden>
+              <span class="player-field__name"><span class="meeple meeple--yellow" aria-hidden="true"></span> Jogador 4</span>
+              <input class="field__input" data-human-name type="text" maxlength="18"
+                     placeholder="Nome do jogador 4" autocomplete="off" spellcheck="false">
+            </label>
           </div>
         </div>
 

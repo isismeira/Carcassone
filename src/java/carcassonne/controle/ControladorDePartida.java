@@ -3,6 +3,7 @@ package carcassonne.controle;
 import carcassonne.modelo.Baralho;
 import carcassonne.modelo.Cor;
 import carcassonne.modelo.EstrategiaHumana;
+import carcassonne.modelo.EstrategiaIA;
 import carcassonne.modelo.Jogada;
 import carcassonne.modelo.Jogador;
 import carcassonne.modelo.Partida;
@@ -27,6 +28,7 @@ public class ControladorDePartida {
     private Jogada jogadaPendente;
     private String mensagem = "";
     private String modo = "ai";
+    private boolean executandoTurnosIA;
 
     /**
      * Comeca uma partida nova: cria o jogador, embaralha, abre o tabuleiro com a
@@ -34,7 +36,18 @@ public class ControladorDePartida {
      */
     public synchronized void novaPartida(String nome, String modo) {
         String nomeNormalizado = nome == null || nome.isBlank() ? "Jogador" : nome.trim();
-        iniciarPartida(List.of(nomeNormalizado), modo == null ? "ai" : modo);
+        String modoNormalizado = modo == null ? "ai" : modo;
+        if ("ai".equals(modoNormalizado)) {
+            if (nomeNormalizado.length() < 2 || nomeNormalizado.length() > 18) {
+                throw new IllegalArgumentException("O nome deve ter entre 2 e 18 caracteres.");
+            }
+            novaPartida(List.of(nomeNormalizado), 1);
+            return;
+        }
+        if ("human".equals(modoNormalizado)) {
+            throw new IllegalArgumentException("Informe os nomes dos três jogadores humanos.");
+        }
+        throw new IllegalArgumentException("Modo de partida inválido.");
     }
 
     /** Inicia uma partida local para exatamente três jogadores humanos. */
@@ -48,20 +61,45 @@ public class ControladorDePartida {
         if (nomesNormalizados.stream().anyMatch(nome -> nome.length() < 2 || nome.length() > 18)) {
             throw new IllegalArgumentException("Cada nome deve ter entre 2 e 18 caracteres.");
         }
-        iniciarPartida(nomesNormalizados, "human");
+        iniciarPartida(nomesNormalizados, 0, "human");
     }
 
-    private void iniciarPartida(List<String> nomes, String modo) {
+    /** Inicia uma partida com humanos nomeados e a quantidade escolhida de IAs. */
+    public synchronized void novaPartida(List<String> nomes, int quantidadeIAs) {
+        if (nomes == null || nomes.isEmpty() || nomes.size() > 4) {
+            throw new IllegalArgumentException("A partida precisa de 1 a 4 jogadores humanos.");
+        }
+        if (quantidadeIAs < 1 || quantidadeIAs > 4) {
+            throw new IllegalArgumentException("A partida precisa de 1 a 4 inteligências artificiais.");
+        }
+        if (nomes.size() + quantidadeIAs > 5) {
+            throw new IllegalArgumentException("A partida pode ter no máximo 5 participantes.");
+        }
+        List<String> nomesNormalizados = nomes.stream()
+                .map(nome -> nome == null ? "" : nome.trim())
+                .toList();
+        if (nomesNormalizados.stream().anyMatch(nome -> nome.length() < 2 || nome.length() > 18)) {
+            throw new IllegalArgumentException("Cada nome deve ter entre 2 e 18 caracteres.");
+        }
+        iniciarPartida(nomesNormalizados, quantidadeIAs, "ai");
+    }
+
+    private void iniciarPartida(List<String> nomes, int quantidadeIAs, String modo) {
         this.modo = modo == null ? "ai" : modo;
         partida = new Partida(new Baralho());
-        Cor[] cores = {Cor.VERMELHO, Cor.AZUL, Cor.VERDE};
+        Cor[] cores = Cor.values();
         for (int i = 0; i < nomes.size(); i++) {
             partida.adicionarJogador(new Jogador(nomes.get(i), cores[i], new EstrategiaHumana()));
+        }
+        for (int i = 0; i < quantidadeIAs; i++) {
+            partida.adicionarJogador(new Jogador("IA " + (i + 1), cores[nomes.size() + i],
+                    new EstrategiaIA(2)));
         }
         partida.iniciar();
         jogadaPendente = null;
         mensagem = "";
         comprarProxima();
+        executarTurnosIA();
     }
 
     public synchronized boolean temPartida() {
@@ -86,6 +124,11 @@ public class ControladorDePartida {
 
     public synchronized String getModo() {
         return modo;
+    }
+
+    public synchronized boolean vezDaIA() {
+        return partida != null && getJogador() != null
+                && getJogador().getEstrategia() instanceof EstrategiaIA;
     }
 
     public synchronized Jogada getJogadaPendente() {
@@ -171,7 +214,35 @@ public class ControladorDePartida {
         mensagem = "";
         partida.passarVez();
         comprarProxima();
+        if (!executandoTurnosIA) {
+            executarTurnosIA();
+        }
         return true;
+    }
+
+    private void executarTurnosIA() {
+        if (executandoTurnosIA) {
+            return;
+        }
+        executandoTurnosIA = true;
+        try {
+            while (vezDaIA() && pecaAtual != null && jogadaPendente == null) {
+                EstrategiaIA estrategia = (EstrategiaIA) getJogador().getEstrategia();
+                Jogada escolhida = estrategia.escolherJogada(partida, pecaAtual);
+                if (escolhida == null) {
+                    throw new IllegalStateException("A IA não encontrou uma jogada para uma peça válida.");
+                }
+                if (!colocar(escolhida.getPosicao().getX(), escolhida.getPosicao().getY())) {
+                    throw new IllegalStateException("A jogada escolhida pela IA não é válida.");
+                }
+                if (jogadaPendente != null
+                        && !concluirJogada(estrategia.escolherSegmento(jogadaPendente))) {
+                    throw new IllegalStateException("A IA não conseguiu concluir a própria jogada.");
+                }
+            }
+        } finally {
+            executandoTurnosIA = false;
+        }
     }
 
     /** @return segmentos distintos da peça recém-colocada para a escolha do meeple. */

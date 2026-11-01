@@ -38,24 +38,32 @@ public class ApiHandler implements HttpHandler {
             switch (rota) {
                 case "/api/partida" -> {
                     String modo = Json.texto(corpo, "modo", "human");
-                    if (!"human".equals(modo)) {
-                        throw new IllegalArgumentException("Este modo de partida ainda não está disponível.");
+                    if ("human".equals(modo)) {
+                        controlador.novaPartida(Json.textos(corpo, "jogadores"));
+                    } else if ("ai".equals(modo)) {
+                        List<String> jogadores = Json.textos(corpo, "jogadores");
+                        int quantidadeIAs = Json.inteiro(corpo, "quantidadeIAs", 1);
+                        controlador.novaPartida(jogadores, quantidadeIAs);
+                    } else {
+                        throw new IllegalArgumentException("Modo de partida inválido.");
                     }
-                    controlador.novaPartida(Json.textos(corpo, "jogadores"));
                     responderEstado(troca);
                 }
                 case "/api/rotacionar" -> {
                     exigirPartida();
+                    exigirVezHumana();
                     controlador.rotacionar(!"esquerda".equals(Json.texto(corpo, "sentido", "direita")));
                     responderEstado(troca);
                 }
                 case "/api/colocar" -> {
                     exigirPartida();
+                    exigirVezHumana();
                     controlador.colocar(Json.inteiro(corpo, "x", 0), Json.inteiro(corpo, "y", 0));
                     responderEstado(troca);
                 }
                 case "/api/meeple" -> {
                     exigirPartida();
+                    exigirVezHumana();
                     controlador.concluirJogada(Json.inteiro(corpo, "segmento", -1));
                     responderEstado(troca);
                 }
@@ -77,6 +85,12 @@ public class ApiHandler implements HttpHandler {
     private void exigirPartida() {
         if (!controlador.temPartida()) {
             throw new IllegalStateException("nenhuma partida em andamento");
+        }
+    }
+
+    private void exigirVezHumana() {
+        if (controlador.vezDaIA()) {
+            throw new IllegalStateException("aguarde a IA concluir a vez dela");
         }
     }
 

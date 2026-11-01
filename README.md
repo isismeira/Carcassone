@@ -15,9 +15,11 @@ No Windows, abra o PowerShell nesta pasta e use:
 Mantenha o terminal aberto enquanto joga e acesse o endereço mostrado. Só
 precisa de um JDK 21 ou mais novo — nenhuma dependência externa.
 
-Na tela inicial, escolha **Contra jogadores**, informe os nomes das três
-pessoas e clique em **Jogar**. A partida é local: todos jogam em turnos no
-mesmo dispositivo. Os modos com IA ainda não estão disponíveis.
+Na tela inicial, escolha **Jogador contra IA** e selecione de 1 a 4 pessoas e
+de 1 a 4 IAs. O total da partida deve ficar entre 2 e 5 participantes; informe
+o nome de cada pessoa. As IAs jogam seus turnos automaticamente. Também é
+possível escolher **Contra jogadores**, informar os nomes das três pessoas e
+jogar em turnos no mesmo dispositivo.
 
 Para conferir as regras do modelo sem abrir o navegador:
 

@@ -23,9 +23,40 @@
   gap: 12px;
 }
 
+.player-counts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.player-count {
+  display: grid;
+  gap: 6px;
+}
+
+.player-count .field__label {
+  font-size: 13px;
+  letter-spacing: 0.08em;
+}
+
+.player-count .field__input {
+  padding: 8px 10px;
+  font-size: 18px;
+}
+
+.player-count-hint {
+  margin: -4px 0 0;
+  color: var(--muted);
+  font-size: 16px;
+}
+
 .player-field {
   display: grid;
   gap: 6px;
+}
+
+.player-field[hidden] {
+  display: none;
 }
 
 .player-field__name {
@@ -319,7 +350,7 @@ body {
 
 .modes {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -392,6 +423,7 @@ body {
 .meeple--red   { background: #b02a2a; border: 1px solid #6d1717; }
 .meeple--blue  { background: #1e3a6e; border: 1px solid #11224a; }
 .meeple--green { background: #2f7d42; border: 1px solid #1b4d28; }
+.meeple--yellow { background: #c9a227; border: 1px solid #806516; }
 
 
 .rule {

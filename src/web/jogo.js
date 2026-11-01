@@ -13,7 +13,7 @@
   const ZOOM_MAX = 2.2;
 
   const MODOS = {
-    ai: "contra IAs",
+    ai: "contra IA",
     human: "contra jogadores",
     mixed: "IAs e jogadores"
   };

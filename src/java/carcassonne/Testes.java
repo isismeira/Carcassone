@@ -1,6 +1,7 @@
 package carcassonne;
 
 import carcassonne.controle.ControladorDePartida;
+import carcassonne.modelo.EstrategiaIA;
 import carcassonne.modelo.Baralho;
 import carcassonne.modelo.Campo;
 import carcassonne.modelo.Canto;
@@ -53,6 +54,8 @@ public final class Testes {
         descarteQuandoNaoCabe();
         semMeeplesContinuaAutomaticamente();
         turnosPassamPelosTresJogadores();
+        iaExecutaOTurnoSemInteracao();
+        partidaConfiguraMultiplosHumanosEIAs();
         cartelaSemEncaixeEmLugarNenhum();
         nenhumaCartelaSeperde();
         desempenhoDeFechamento();
@@ -598,6 +601,70 @@ public final class Testes {
                         && controlador.getPartida().getRodadas().size() == 2,
                 "jogador atual=" + controlador.getJogador().getNome()
                         + ", rodadas=" + controlador.getPartida().getRodadas().size());
+    }
+
+    private static void iaExecutaOTurnoSemInteracao() {
+        ControladorDePartida controlador = new ControladorDePartida();
+        controlador.novaPartida("Ana", "ai");
+        boolean configurouOponente = controlador.getPartida().getJogadores().size() == 2
+                && controlador.getPartida().getJogadores().get(1).getEstrategia() instanceof EstrategiaIA;
+        int pecasAntes = controlador.getPartida().getTabuleiro().quantidadeDePecas();
+        long inicioDecisao = System.nanoTime();
+        Posicao candidata = controlador.candidatas().get(0);
+        boolean colocou = controlador.colocar(candidata.getX(), candidata.getY());
+        if (controlador.getJogadaPendente() != null) {
+            controlador.concluirJogada(-1);
+        }
+        long tempoDecisaoMs = (System.nanoTime() - inicioDecisao) / 1_000_000;
+        int pecasDepois = controlador.getPartida().getTabuleiro().quantidadeDePecas();
+        checar("modo contra IA cria um oponente automatizado",
+                configurouOponente, controlador.getPartida().getJogadores().toString());
+        checar("IA posiciona a peça e conclui a vez sem interação humana",
+                colocou && pecasDepois == pecasAntes + 2
+                        && controlador.getJogador().getNome().equals("Ana")
+                        && controlador.getJogadaPendente() == null
+                        && controlador.getPecaAtual() != null,
+                "peças antes/depois=" + pecasAntes + "/" + pecasDepois
+                        + ", jogador atual=" + controlador.getJogador().getNome());
+        checar("IA decide e executa em menos de 2 segundos (RNF05.1)",
+                tempoDecisaoMs < 2_000, tempoDecisaoMs + "ms");
+    }
+
+    private static void partidaConfiguraMultiplosHumanosEIAs() {
+        ControladorDePartida controlador = new ControladorDePartida();
+        controlador.novaPartida(List.of("Ana", "Bia"), 2);
+        List<Jogador> jogadores = controlador.getPartida().getJogadores();
+        boolean iasIndependentes = jogadores.size() == 4
+                && jogadores.get(2).getEstrategia() instanceof EstrategiaIA
+                && jogadores.get(3).getEstrategia() instanceof EstrategiaIA
+                && jogadores.get(2).getEstrategia() != jogadores.get(3).getEstrategia();
+
+        int pecasAntes = controlador.getPartida().getTabuleiro().quantidadeDePecas();
+        concluirTurnoSemMeeple(controlador);
+        concluirTurnoSemMeeple(controlador);
+        boolean iasJogaramAutomaticamente = controlador.getPartida().getTabuleiro().quantidadeDePecas()
+                == pecasAntes + 4 && controlador.getJogador().getNome().equals("Ana");
+
+        ControladorDePartida maximo = new ControladorDePartida();
+        maximo.novaPartida(List.of("Ana", "Bia", "Caio", "Dora"), 1);
+        boolean limitePermitido = maximo.getPartida().getJogadores().size() == 5;
+
+        boolean rejeitouExcesso = false;
+        try {
+            maximo.novaPartida(List.of("Ana", "Bia", "Caio", "Dora"), 2);
+        } catch (IllegalArgumentException entradaInvalida) {
+            rejeitouExcesso = true;
+        }
+
+        checar("cada IA possui estrategia independente",
+                iasIndependentes, jogadores.toString());
+        checar("multiplas IAs executam suas jogadas sem interacao",
+                iasJogaramAutomaticamente,
+                "pecas=" + controlador.getPartida().getTabuleiro().quantidadeDePecas());
+        checar("partida aceita quatro humanos e uma IA",
+                limitePermitido, "participantes=" + maximo.getPartida().getJogadores().size());
+        checar("partida rejeita mais de cinco participantes",
+                rejeitouExcesso, "aceitou seis participantes");
     }
 
     private static void concluirTurnoSemMeeple(ControladorDePartida controlador) {

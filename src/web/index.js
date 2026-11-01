@@ -5,7 +5,9 @@
 
   const MIN_NAME = 2;
   const PLAYER_COUNT = 3;
-  const MODES = ["human"];
+  const MAX_HUMAN_PLAYERS = 4;
+  const MAX_PLAYERS = 5;
+  const MODES = ["ai", "human"];
 
   const params = new URLSearchParams(location.search);
 
@@ -17,7 +19,14 @@
     showRules: readBool(params.get("rules"), DEFAULTS.showRules)
   };
 
-  const state = { names: Array(PLAYER_COUNT).fill(""), mode: null, started: false, page: "setup" };
+  const state = {
+    names: Array(MAX_HUMAN_PLAYERS).fill(""),
+    humanCount: 1,
+    aiCount: 1,
+    mode: null,
+    started: false,
+    page: "setup"
+  };
 
   const el = {
     mist: document.querySelector("[data-mist]"),
@@ -25,6 +34,11 @@
     logoFallback: document.querySelector("[data-logo-fallback]"),
     playerFields: document.querySelector("[data-player-fields]"),
     playerNames: Array.from(document.querySelectorAll("[data-player-name]")),
+    aiConfig: document.querySelector("[data-ai-config]"),
+    humanCount: document.querySelector("[data-human-count]"),
+    aiCount: document.querySelector("[data-ai-count]"),
+    humanFields: Array.from(document.querySelectorAll("[data-human-field]")),
+    humanNames: Array.from(document.querySelectorAll("[data-human-name]")),
     modes: document.querySelector("[data-modes]"),
     modeButtons: Array.from(document.querySelectorAll("[data-mode]:not(:disabled)")),
     play: document.querySelector("[data-play]"),
@@ -42,14 +56,18 @@
   };
 
 
-  const isReady = () => state.mode === "human"
-    && state.names.length === PLAYER_COUNT
-    && state.names.every((name) => name.trim().length >= MIN_NAME);
+  const isReady = () => state.mode === "ai"
+    ? state.names.slice(0, state.humanCount)
+      .every((name) => name.trim().length >= MIN_NAME)
+    : state.mode === "human"
+      && state.names.slice(0, PLAYER_COUNT).every((name) => name.trim().length >= MIN_NAME);
 
   function summaryFor(mode) {
     switch (mode) {
       case "human":
         return "Partida local para três pessoas, em turnos no mesmo dispositivo.";
+      case "ai":
+        return `Partida com ${state.humanCount} ${state.humanCount === 1 ? "jogador humano" : "jogadores humanos"} e ${state.aiCount} ${state.aiCount === 1 ? "IA" : "IAs"} (${state.humanCount + state.aiCount} participantes).`;
       default:
         return "";
     }
@@ -58,12 +76,16 @@
   function hintFor() {
     if (!state.mode) return "Escolha o formato da partida.";
     if (isReady()) return "";
-    return "Preencha os três nomes (mínimo de 2 caracteres cada).";
+    return state.mode === "ai"
+      ? "Informe o nome de cada jogador (mínimo de 2 caracteres)."
+      : "Preencha os três nomes (mínimo de 2 caracteres cada).";
   }
 
   function focusSetup() {
     if (state.mode === "human") {
       el.playerNames[0].focus();
+    } else if (state.mode === "ai") {
+      el.humanNames[0].focus();
     } else {
       el.modeButtons[0].focus();
     }
@@ -77,6 +99,10 @@
     el.setup.inert = showingInfo;
     el.start.hidden = !state.started;
     el.playerFields.hidden = state.mode !== "human";
+    el.aiConfig.hidden = state.mode !== "ai";
+    el.humanFields.forEach((field, index) => {
+      field.hidden = index >= state.humanCount;
+    });
     el.infoHow.hidden = state.started || state.page !== "how";
     el.infoRules.hidden = state.started || state.page !== "rules";
 
@@ -91,7 +117,12 @@
     el.play.disabled = !isReady();
     el.hint.textContent = hintFor();
 
-    el.startName.textContent = state.names.map((name) => name.trim()).join(" · ");
+    el.startName.textContent = state.mode === "ai"
+      ? [
+        ...state.names.slice(0, state.humanCount).map((name) => name.trim()),
+        ...Array.from({ length: state.aiCount }, (_, index) => `IA ${index + 1}`)
+      ].join(" · ")
+      : state.names.slice(0, PLAYER_COUNT).map((name) => name.trim()).join(" · ");
     el.summary.textContent = summaryFor(state.mode);
   }
 
@@ -108,7 +139,10 @@
     el.back.focus();
 
     const detail = {
-      players: state.names.map((name) => name.trim()),
+      players: state.mode === "ai"
+        ? state.names.slice(0, state.humanCount).map((name) => name.trim())
+        : state.names.slice(0, PLAYER_COUNT).map((name) => name.trim()),
+      quantidadeIAs: state.mode === "ai" ? state.aiCount : 0,
       mode: state.mode
     };
     document.dispatchEvent(new CustomEvent("carcassonne:start", { detail }));
@@ -118,7 +152,11 @@
       const resposta = await fetch("/api/partida", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jogadores: detail.players, modo: detail.mode })
+        body: JSON.stringify({
+          jogadores: detail.players,
+          quantidadeIAs: detail.quantidadeIAs,
+          modo: detail.mode
+        })
       });
       if (!resposta.ok) throw new Error("o servidor recusou a partida");
       window.location.href = "jogo.html";
@@ -165,6 +203,36 @@
         }
       }
     });
+  });
+
+  el.humanNames.forEach((input, index) => {
+    input.addEventListener("input", () => {
+      state.names[index] = input.value;
+      render();
+    });
+    input.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      const proximo = el.humanNames.slice(index + 1, state.humanCount)[0];
+      if (proximo) {
+        proximo.focus();
+      } else if (isReady()) {
+        play();
+      }
+    });
+  });
+
+  el.humanCount.addEventListener("change", () => {
+    state.humanCount = Number(el.humanCount.value);
+    state.aiCount = Math.min(state.aiCount, MAX_PLAYERS - state.humanCount);
+    el.aiCount.value = String(state.aiCount);
+    render();
+  });
+  el.aiCount.addEventListener("change", () => {
+    state.aiCount = Number(el.aiCount.value);
+    state.humanCount = Math.min(state.humanCount, MAX_PLAYERS - state.aiCount);
+    el.humanCount.value = String(state.humanCount);
+    render();
   });
 
   el.modeButtons.forEach((button) => {
