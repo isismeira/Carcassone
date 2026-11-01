@@ -61,6 +61,7 @@
     nome: document.querySelector("[data-nome]"),
     modo: document.querySelector("[data-modo]"),
     cor: document.querySelector("[data-cor]"),
+    placar: document.querySelector("[data-placar]"),
     restantes: document.querySelector("[data-restantes]"),
     colocadas: document.querySelector("[data-colocadas]"),
     pontos: document.querySelector("[data-pontos]"),
@@ -130,6 +131,7 @@
     el.nome.textContent = estado.jogador.nome;
     el.cor.style.background = CORES[estado.jogador.cor] || CORES.VERMELHO;
     el.modo.textContent = MODOS[estado.modo] ? `· ${MODOS[estado.modo]}` : "";
+    desenharPlacar();
 
     el.restantes.textContent = estado.baralho.restantes;
     el.colocadas.textContent = estado.tabuleiro.length;
@@ -148,6 +150,32 @@
 
     if (estado.encerrada) {
       encerrar(textoDeEncerramento());
+    }
+  }
+
+  function desenharPlacar() {
+    el.placar.replaceChildren();
+    for (const jogador of estado.jogadores) {
+      const item = document.createElement("li");
+      item.className = "hud__placar-item";
+      if (jogador.vez) item.setAttribute("aria-current", "true");
+
+      const cor = document.createElement("span");
+      cor.className = "hud__placar-cor";
+      cor.style.backgroundColor = CORES[jogador.cor] || CORES.VERMELHO;
+      cor.setAttribute("aria-hidden", "true");
+
+      const nome = document.createElement("span");
+      nome.className = "hud__placar-nome";
+      nome.textContent = jogador.nome;
+
+      const pontos = document.createElement("span");
+      pontos.className = "hud__placar-pontos";
+      pontos.textContent = `${jogador.pontos}`;
+      pontos.setAttribute("aria-label", `${jogador.pontos} pontos`);
+
+      item.append(cor, nome, pontos);
+      el.placar.append(item);
     }
   }
 
@@ -275,8 +303,13 @@
   function textoDeEncerramento() {
     const colocadas = estado.tabuleiro.length;
     const descartadas = estado.baralho.descartadas;
-    let texto = `O baralho acabou. Você terminou com ${estado.jogador.pontos} pontos e encaixou ${colocadas} peças no tabuleiro`;
-    texto += descartadas ? `, e ${descartadas} foram descartadas por não caber em lugar nenhum.` : ".";
+    const ranking = [...estado.jogadores].sort((a, b) => b.pontos - a.pontos);
+    const maiorPontuacao = ranking[0]?.pontos ?? 0;
+    const vencedores = ranking.filter((jogador) => jogador.pontos === maiorPontuacao);
+    const nomesVencedores = vencedores.map((jogador) => jogador.nome).join(" e ");
+    const placar = ranking.map((jogador) => `${jogador.nome}: ${jogador.pontos} pontos`).join(" · ");
+    let texto = `O baralho acabou. ${nomesVencedores} ${vencedores.length === 1 ? "venceu" : "empataram"} com ${maiorPontuacao} pontos. Placar: ${placar}. Foram encaixadas ${colocadas} peças no tabuleiro`;
+    texto += descartadas ? `; ${descartadas} foram descartadas por não caber em lugar nenhum.` : ".";
     return texto;
   }
 

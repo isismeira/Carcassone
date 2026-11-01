@@ -141,4 +141,95 @@ public final class Json {
             return padrao;
         }
     }
+
+    /** Le uma lista JSON de textos, usada para receber os nomes dos jogadores. */
+    public static List<String> textos(String json, String campo) {
+        String marca = "\"" + campo + "\"";
+        int inicio = json.indexOf(marca);
+        if (inicio < 0) {
+            throw new IllegalArgumentException("Campo obrigatório ausente: " + campo + ".");
+        }
+        int indice = json.indexOf(':', inicio + marca.length());
+        if (indice < 0) {
+            throw new IllegalArgumentException("Lista inválida no campo " + campo + ".");
+        }
+        indice = avancarEspacos(json, indice + 1);
+        if (indice >= json.length() || json.charAt(indice) != '[') {
+            throw new IllegalArgumentException("O campo " + campo + " precisa ser uma lista.");
+        }
+
+        List<String> valores = new java.util.ArrayList<>();
+        indice = avancarEspacos(json, indice + 1);
+        if (indice < json.length() && json.charAt(indice) == ']') {
+            return valores;
+        }
+
+        while (indice < json.length()) {
+            if (json.charAt(indice) != '"') {
+                throw new IllegalArgumentException("A lista " + campo + " deve conter apenas textos.");
+            }
+            StringBuilder valor = new StringBuilder();
+            indice++;
+            boolean fechado = false;
+            while (indice < json.length()) {
+                char caractere = json.charAt(indice++);
+                if (caractere == '"') {
+                    fechado = true;
+                    break;
+                }
+                if (caractere != '\\') {
+                    valor.append(caractere);
+                    continue;
+                }
+                if (indice >= json.length()) {
+                    break;
+                }
+                char escape = json.charAt(indice++);
+                switch (escape) {
+                    case '"', '\\', '/' -> valor.append(escape);
+                    case 'b' -> valor.append('\b');
+                    case 'f' -> valor.append('\f');
+                    case 'n' -> valor.append('\n');
+                    case 'r' -> valor.append('\r');
+                    case 't' -> valor.append('\t');
+                    case 'u' -> {
+                        if (indice + 4 > json.length()) {
+                            throw new IllegalArgumentException("Escape Unicode inválido na lista " + campo + ".");
+                        }
+                        try {
+                            valor.append((char) Integer.parseInt(json.substring(indice, indice + 4), 16));
+                        } catch (NumberFormatException erro) {
+                            throw new IllegalArgumentException("Escape Unicode inválido na lista " + campo + ".");
+                        }
+                        indice += 4;
+                    }
+                    default -> throw new IllegalArgumentException("Escape inválido na lista " + campo + ".");
+                }
+            }
+            if (!fechado) {
+                throw new IllegalArgumentException("Texto não terminado na lista " + campo + ".");
+            }
+            valores.add(valor.toString());
+            indice = avancarEspacos(json, indice);
+            if (indice >= json.length()) {
+                break;
+            }
+            char separador = json.charAt(indice++);
+            if (separador == ']') {
+                return valores;
+            }
+            if (separador != ',') {
+                throw new IllegalArgumentException("Separador inválido na lista " + campo + ".");
+            }
+            indice = avancarEspacos(json, indice);
+        }
+        throw new IllegalArgumentException("Lista não terminada no campo " + campo + ".");
+    }
+
+    private static int avancarEspacos(String texto, int indice) {
+        while (indice < texto.length() && Character.isWhitespace(texto.charAt(indice))) {
+            indice++;
+        }
+        return indice;
+    }
 }

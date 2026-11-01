@@ -23,7 +23,6 @@ import java.util.Set;
  */
 public class ControladorDePartida {
     private Partida partida;
-    private Jogador jogador;
     private Peca pecaAtual;
     private Jogada jogadaPendente;
     private String mensagem = "";
@@ -34,11 +33,31 @@ public class ControladorDePartida {
      * cartela inicial e ja compra a primeira cartela jogavel.
      */
     public synchronized void novaPartida(String nome, String modo) {
+        String nomeNormalizado = nome == null || nome.isBlank() ? "Jogador" : nome.trim();
+        iniciarPartida(List.of(nomeNormalizado), modo == null ? "ai" : modo);
+    }
+
+    /** Inicia uma partida local para exatamente três jogadores humanos. */
+    public synchronized void novaPartida(List<String> nomes) {
+        if (nomes == null || nomes.size() != 3) {
+            throw new IllegalArgumentException("A partida precisa de exatamente três jogadores.");
+        }
+        List<String> nomesNormalizados = nomes.stream()
+                .map(nome -> nome == null ? "" : nome.trim())
+                .toList();
+        if (nomesNormalizados.stream().anyMatch(nome -> nome.length() < 2 || nome.length() > 18)) {
+            throw new IllegalArgumentException("Cada nome deve ter entre 2 e 18 caracteres.");
+        }
+        iniciarPartida(nomesNormalizados, "human");
+    }
+
+    private void iniciarPartida(List<String> nomes, String modo) {
         this.modo = modo == null ? "ai" : modo;
         partida = new Partida(new Baralho());
-        jogador = new Jogador(nome == null || nome.isBlank() ? "Jogador" : nome.trim(),
-                Cor.VERMELHO, new EstrategiaHumana());
-        partida.adicionarJogador(jogador);
+        Cor[] cores = {Cor.VERMELHO, Cor.AZUL, Cor.VERDE};
+        for (int i = 0; i < nomes.size(); i++) {
+            partida.adicionarJogador(new Jogador(nomes.get(i), cores[i], new EstrategiaHumana()));
+        }
         partida.iniciar();
         jogadaPendente = null;
         mensagem = "";
@@ -54,7 +73,7 @@ public class ControladorDePartida {
     }
 
     public synchronized Jogador getJogador() {
-        return jogador;
+        return partida == null ? null : partida.getJogadorAtual();
     }
 
     public synchronized Peca getPecaAtual() {
@@ -96,7 +115,7 @@ public class ControladorDePartida {
             return false;
         }
         Posicao posicao = new Posicao(x, y);
-        Jogada jogada = new Jogada(jogador, pecaAtual, posicao, pecaAtual.getRotacao());
+        Jogada jogada = new Jogada(getJogador(), pecaAtual, posicao, pecaAtual.getRotacao());
         if (!jogada.colocarCartela(partida.getTabuleiro())) {
             mensagem = "Essa posicao nao aceita a cartela nesta rotacao.";
             return false;
@@ -137,7 +156,7 @@ public class ControladorDePartida {
             }
             jogadaPendente.setSegmentoEscolhido(segmento);
             if (!jogadaPendente.colocarSeguidor()) {
-                mensagem = jogador.temMeepleDisponivel()
+                mensagem = getJogador().temMeepleDisponivel()
                         ? "Não foi possível alocar o meeple neste segmento."
                         : "Você não tem meeples disponíveis.";
                 return false;
@@ -150,6 +169,7 @@ public class ControladorDePartida {
         jogadaPendente.pontuarRegioesConcluidas(partida.getTabuleiro());
         jogadaPendente = null;
         mensagem = "";
+        partida.passarVez();
         comprarProxima();
         return true;
     }

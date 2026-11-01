@@ -37,8 +37,11 @@ public class ApiHandler implements HttpHandler {
 
             switch (rota) {
                 case "/api/partida" -> {
-                    controlador.novaPartida(Json.texto(corpo, "nome", "Jogador"),
-                            Json.texto(corpo, "modo", "ai"));
+                    String modo = Json.texto(corpo, "modo", "human");
+                    if (!"human".equals(modo)) {
+                        throw new IllegalArgumentException("Este modo de partida ainda não está disponível.");
+                    }
+                    controlador.novaPartida(Json.textos(corpo, "jogadores"));
                     responderEstado(troca);
                 }
                 case "/api/rotacionar" -> {
@@ -64,6 +67,8 @@ public class ApiHandler implements HttpHandler {
             }
         } catch (IllegalStateException semPartida) {
             erro(troca, 409, semPartida.getMessage());
+        } catch (IllegalArgumentException entradaInvalida) {
+            erro(troca, 400, entradaInvalida.getMessage());
         } catch (RuntimeException falha) {
             erro(troca, 500, String.valueOf(falha.getMessage()));
         }
@@ -89,6 +94,14 @@ public class ApiHandler implements HttpHandler {
     private Map<String, Object> montarEstado() {
         Map<String, Object> estado = new LinkedHashMap<>();
 
+        estado.put("jogadores", controlador.getPartida().getJogadores().stream()
+                .map(jogador -> Map.of(
+                        "nome", jogador.getNome(),
+                        "cor", jogador.getCor().name(),
+                        "pontos", jogador.getPontos(),
+                        "meeples", jogador.getMeeplesDisponiveis(),
+                        "vez", jogador == controlador.getJogador()))
+                .toList());
         estado.put("jogador", Map.of(
                 "nome", controlador.getJogador().getNome(),
                 "cor", controlador.getJogador().getCor().name(),

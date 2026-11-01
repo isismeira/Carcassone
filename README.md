@@ -13,7 +13,11 @@ No Windows, abra o PowerShell nesta pasta e use:
 ```
 
 Mantenha o terminal aberto enquanto joga e acesse o endereço mostrado. Só
-precisa de um JDK 17 ou mais novo — nenhuma dependência externa.
+precisa de um JDK 21 ou mais novo — nenhuma dependência externa.
+
+Na tela inicial, escolha **Contra jogadores**, informe os nomes das três
+pessoas e clique em **Jogar**. A partida é local: todos jogam em turnos no
+mesmo dispositivo. Os modos com IA ainda não estão disponíveis.
 
 Para conferir as regras do modelo sem abrir o navegador:
 

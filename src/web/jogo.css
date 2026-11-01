@@ -69,6 +69,12 @@ body {
   min-width: 0;
 }
 
+.hud__vez {
+  color: #a9b6cd;
+  font-size: 15px;
+  white-space: nowrap;
+}
+
 .hud__chip {
   width: 16px;
   height: 16px;
@@ -77,6 +83,55 @@ body {
   background: #b02a2a;
   border: 1px solid #6d1717;
   box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.35);
+}
+
+.hud__placar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hud__placar-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 5px 8px;
+  color: #d7dfed;
+  border: 1px solid rgba(212, 175, 55, 0.22);
+  border-radius: 3px;
+}
+
+.hud__placar-item[aria-current="true"] {
+  background: rgba(212, 175, 55, 0.14);
+  border-color: var(--gold);
+}
+
+.hud__placar-cor {
+  width: 10px;
+  height: 10px;
+  flex: none;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 50%;
+}
+
+.hud__placar-nome {
+  max-width: 100px;
+  overflow: hidden;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hud__placar-pontos {
+  color: var(--gold-soft);
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .hud__nome {
@@ -606,13 +661,18 @@ body {
 
   .painel__dica { flex-basis: 100%; font-size: 15px; }
 
-  .hud { gap: 8px; padding: 10px 12px; }
+  .hud { flex-wrap: wrap; gap: 8px; padding: 10px 12px; }
   .hud__contadores { gap: 8px; }
   .hud__nome { font-size: 16px; }
   .hud__sair { padding: 7px 10px; font-size: 11px; letter-spacing: 0.1em; }
   .contador__valor { font-size: 16px; }
   .contador__rotulo { font-size: 10px; }
   .hud__modo { display: none; }
+  .hud__placar { order: 4; flex: 1 0 100%; justify-content: center; }
+  .hud__placar-item { padding: 4px 6px; }
+  .hud__placar-nome { max-width: 76px; font-size: 12px; }
+  .hud__placar-pontos { font-size: 12px; }
+  .hud__vez { font-size: 12px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

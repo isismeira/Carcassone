@@ -18,6 +18,31 @@
   --gold-soft: #f7e3a1;
 }
 
+.player-fields__list {
+  display: grid;
+  gap: 12px;
+}
+
+.player-field {
+  display: grid;
+  gap: 6px;
+}
+
+.player-field__name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--label);
+}
+
+.player-field .field__input {
+  padding: 10px 12px;
+  font-size: 19px;
+}
+
 * { box-sizing: border-box; }
 
 html, body {
@@ -255,6 +280,8 @@ body {
   gap: 10px;
 }
 
+.field[hidden] { display: none; }
+
 .field__label {
   font-family: 'Cinzel', Georgia, serif;
   font-size: 15px;
@@ -325,6 +352,17 @@ body {
   font-size: 15px;
   font-weight: 600;
   line-height: 1.3;
+}
+
+.mode--unavailable {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.mode__availability {
+  font-size: 13px;
+  font-style: italic;
+  color: var(--muted);
 }
 
 .mode__meeples {
@@ -503,6 +541,8 @@ body {
   .modes { gap: 8px; }
   .mode { padding: 14px 6px 12px; gap: 8px; }
   .mode__name { font-size: 13px; }
+  .player-fields__list { gap: 9px; }
+  .player-field .field__input { padding: 9px 10px; font-size: 17px; }
   .field__input { font-size: 19px; }
   .play { font-size: 19px; letter-spacing: 0.16em; padding: 16px 12px; }
   .start__name { font-size: 25px; }

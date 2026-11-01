@@ -2,7 +2,9 @@ package carcassonne;
 
 import carcassonne.controle.ControladorDePartida;
 import carcassonne.modelo.Baralho;
+import carcassonne.modelo.Campo;
 import carcassonne.modelo.Canto;
+import carcassonne.modelo.Cidade;
 import carcassonne.modelo.Cor;
 import carcassonne.modelo.EstrategiaHumana;
 import carcassonne.modelo.Jogada;
@@ -15,9 +17,8 @@ import carcassonne.modelo.Posicao;
 import carcassonne.modelo.Regiao;
 import carcassonne.modelo.Segmento;
 import carcassonne.modelo.Tabuleiro;
-import carcassonne.modelo.TipoTerreno;
 import carcassonne.modelo.TipoMeeple;
-
+import carcassonne.modelo.TipoTerreno;
 import java.util.List;
 
 /** Conferencia das regras do modelo, executada com {@code java carcassonne.Principal --testes}. */
@@ -51,14 +52,18 @@ public final class Testes {
         cidadeContaBrasao();
         descarteQuandoNaoCabe();
         semMeeplesContinuaAutomaticamente();
+        turnosPassamPelosTresJogadores();
         cartelaSemEncaixeEmLugarNenhum();
         nenhumaCartelaSeperde();
         desempenhoDeFechamento();
+        campoSeparadoNaoContaCidadeDaMesmaPeca();
 
         System.out.println();
         System.out.println("  " + passou + " passaram, " + falhou + " falharam");
         return falhou == 0 ? 0 : 1;
     }
+
+
 
     // ---------- casos ----------
 
@@ -576,6 +581,33 @@ public final class Testes {
                 "colocou=" + colocou + ", pendente=" + (controlador.getJogadaPendente() != null));
     }
 
+    private static void turnosPassamPelosTresJogadores() {
+        ControladorDePartida controlador = new ControladorDePartida();
+        controlador.novaPartida(List.of("Ana", "Bia", "Caio"));
+        boolean iniciouComPrimeira = controlador.getJogador().getNome().equals("Ana");
+
+        concluirTurnoSemMeeple(controlador);
+        boolean passouParaSegunda = controlador.getJogador().getNome().equals("Bia");
+        concluirTurnoSemMeeple(controlador);
+        boolean passouParaTerceiro = controlador.getJogador().getNome().equals("Caio");
+        concluirTurnoSemMeeple(controlador);
+
+        checar("turnos passam pelos tres jogadores e voltam ao primeiro",
+                iniciouComPrimeira && passouParaSegunda && passouParaTerceiro
+                        && controlador.getJogador().getNome().equals("Ana")
+                        && controlador.getPartida().getRodadas().size() == 2,
+                "jogador atual=" + controlador.getJogador().getNome()
+                        + ", rodadas=" + controlador.getPartida().getRodadas().size());
+    }
+
+    private static void concluirTurnoSemMeeple(ControladorDePartida controlador) {
+        Posicao candidata = controlador.candidatas().get(0);
+        controlador.colocar(candidata.getX(), candidata.getY());
+        if (controlador.getJogadaPendente() != null) {
+            controlador.concluirJogada(-1);
+        }
+    }
+
     /**
      * Cenario deterministico do RF02.3: um tabuleiro so com mosteiro expoe
      * apenas campo, entao a cartela toda de cidade nao cabe em rotacao alguma.
@@ -698,5 +730,23 @@ public final class Testes {
             falhou++;
             System.out.println("  FALHA " + descricao + "  -> " + detalhe);
         }
+    }
+
+    /*talvez tenhamos problema na contagem de cidades adjacentes, verificar*/
+    private static void campoSeparadoNaoContaCidadeDaMesmaPeca() {
+        Tabuleiro tabuleiro = new Tabuleiro();
+        Peca peca = acharNoBaralho("CastleWallCurveLeft#1");
+        boolean colocou = tabuleiro.colocar(peca, new Posicao(0, 0));
+        Campo campoSudoeste =
+                (Campo) peca.segmentoEm(Canto.SUDOESTE).getRegiao();
+        Cidade cidade = peca.getSegmentos().stream()
+                .filter(segmento -> segmento.getTipo() == TipoTerreno.CIDADE)
+                .map(Segmento::getRegiao)
+                .map(Cidade.class::cast)
+                .findFirst()
+                .orElseThrow();
+        checar("campo sudoeste não conta cidade que não toca",
+                colocou && !campoSudoeste.getCidadesAdjacentes().contains(cidade),
+                "cidade registrada como adjacente ao campo sudoeste");
     }
 }

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Carcassonne</title>
-<meta name="description" content="Tela inicial do Carcassonne: escolha seu nome e o formato da partida.">
+<meta name="description" content="Tela inicial do Carcassonne: escolha o formato e os jogadores da partida.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
@@ -31,42 +31,50 @@
       <div class="view" data-view="setup">
 
         <div class="field">
-          <label class="field__label" for="player-name">Nome do jogador</label>
-          <input class="field__input" id="player-name" data-name type="text" maxlength="18"
-                 placeholder="Digite seu nome..." autocomplete="off" spellcheck="false">
-        </div>
-
-        <div class="field">
           <span class="field__label" id="mode-label">Formato da partida</span>
           <div class="modes" role="radiogroup" aria-labelledby="mode-label" data-modes>
 
-            <button class="mode" type="button" role="radio" aria-checked="false" tabindex="0" data-mode="ai">
+            <button class="mode mode--unavailable" type="button" role="radio" aria-checked="false"
+                    tabindex="-1" disabled aria-describedby="ai-unavailable">
               <span class="mode__meeples" aria-hidden="true">
                 <span class="meeple meeple--grey"></span>
                 <span class="meeple meeple--grey"></span>
               </span>
               <span class="mode__name">Contra IAs</span>
-              <span class="mode__ring" aria-hidden="true"></span>
+              <span class="mode__availability" id="ai-unavailable">Em breve</span>
             </button>
 
-            <button class="mode" type="button" role="radio" aria-checked="false" tabindex="-1" data-mode="human">
+            <button class="mode" type="button" role="radio" aria-checked="false" tabindex="0" data-mode="human">
               <span class="mode__meeples" aria-hidden="true">
                 <span class="meeple meeple--red"></span>
                 <span class="meeple meeple--blue"></span>
-              </span>
-              <span class="mode__name">Contra jogadores</span>
-              <span class="mode__ring" aria-hidden="true"></span>
-            </button>
-
-            <button class="mode" type="button" role="radio" aria-checked="false" tabindex="-1" data-mode="mixed">
-              <span class="mode__meeples" aria-hidden="true">
                 <span class="meeple meeple--green"></span>
-                <span class="meeple meeple--grey"></span>
               </span>
-              <span class="mode__name">IAs e jogadores</span>
+              <span class="mode__name">Contra jogadores · 3 pessoas</span>
               <span class="mode__ring" aria-hidden="true"></span>
             </button>
 
+          </div>
+        </div>
+
+        <div class="field player-fields" data-player-fields hidden>
+          <span class="field__label" id="players-label">Nomes dos jogadores</span>
+          <div class="player-fields__list" role="group" aria-labelledby="players-label">
+            <label class="player-field" for="player-one">
+              <span class="player-field__name"><span class="meeple meeple--red" aria-hidden="true"></span> Jogador 1</span>
+              <input class="field__input" id="player-one" data-player-name type="text" maxlength="18"
+                     placeholder="Nome do jogador 1" autocomplete="off" spellcheck="false">
+            </label>
+            <label class="player-field" for="player-two">
+              <span class="player-field__name"><span class="meeple meeple--blue" aria-hidden="true"></span> Jogador 2</span>
+              <input class="field__input" id="player-two" data-player-name type="text" maxlength="18"
+                     placeholder="Nome do jogador 2" autocomplete="off" spellcheck="false">
+            </label>
+            <label class="player-field" for="player-three">
+              <span class="player-field__name"><span class="meeple meeple--green" aria-hidden="true"></span> Jogador 3</span>
+              <input class="field__input" id="player-three" data-player-name type="text" maxlength="18"
+                     placeholder="Nome do jogador 3" autocomplete="off" spellcheck="false">
+            </label>
           </div>
         </div>
 

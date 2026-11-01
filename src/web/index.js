@@ -1,40 +1,32 @@
 (() => {
   "use strict";
 
-  const DEFAULTS = {
-    mistEnabled: true,   
-    showRules: true,    
-    aiOpponents: 2      
-  };
+  const DEFAULTS = { mistEnabled: true, showRules: true };
 
   const MIN_NAME = 2;
-  const MODES = ["ai", "human", "mixed"];
+  const PLAYER_COUNT = 3;
+  const MODES = ["human"];
 
   const params = new URLSearchParams(location.search);
 
   const readBool = (value, fallback) =>
     value === null ? fallback : !/^(0|false|no|nao|não)$/i.test(value.trim());
 
-  const readInt = (value, fallback, min, max) => {
-    const n = Number.parseInt(value ?? "", 10);
-    return Number.isNaN(n) ? fallback : Math.min(max, Math.max(min, n));
-  };
-
   const config = {
     mistEnabled: readBool(params.get("mist"), DEFAULTS.mistEnabled),
-    showRules: readBool(params.get("rules"), DEFAULTS.showRules),
-    aiOpponents: readInt(params.get("ai"), DEFAULTS.aiOpponents, 1, 4)
+    showRules: readBool(params.get("rules"), DEFAULTS.showRules)
   };
 
-  const state = { name: "", mode: null, started: false, page: "setup" };
+  const state = { names: Array(PLAYER_COUNT).fill(""), mode: null, started: false, page: "setup" };
 
   const el = {
     mist: document.querySelector("[data-mist]"),
     logo: document.querySelector("[data-logo]"),
     logoFallback: document.querySelector("[data-logo-fallback]"),
-    name: document.querySelector("[data-name]"),
+    playerFields: document.querySelector("[data-player-fields]"),
+    playerNames: Array.from(document.querySelectorAll("[data-player-name]")),
     modes: document.querySelector("[data-modes]"),
-    modeButtons: Array.from(document.querySelectorAll("[data-mode]")),
+    modeButtons: Array.from(document.querySelectorAll("[data-mode]:not(:disabled)")),
     play: document.querySelector("[data-play]"),
     hint: document.querySelector("[data-hint]"),
     links: document.querySelector("[data-links]"),
@@ -50,34 +42,32 @@
   };
 
 
-  const isReady = () => state.name.trim().length >= MIN_NAME && state.mode !== null;
+  const isReady = () => state.mode === "human"
+    && state.names.length === PLAYER_COUNT
+    && state.names.every((name) => name.trim().length >= MIN_NAME);
 
   function summaryFor(mode) {
-    const n = config.aiOpponents;
     switch (mode) {
-      case "ai":
-        return n === 1
-          ? "Partida contra 1 oponente controlado pela IA."
-          : `Partida contra ${n} oponentes controlados pela IA.`;
       case "human":
-        return "Partida aberta: aguardando outros jogadores entrarem na mesa.";
-      case "mixed":
-        return n === 1
-          ? "Mesa mista: jogadores humanos completados por 1 IA."
-          : `Mesa mista: jogadores humanos completados por ${n} IAs.`;
+        return "Partida local para três pessoas, em turnos no mesmo dispositivo.";
       default:
         return "";
     }
   }
 
   function hintFor() {
-    const named = state.name.trim().length >= MIN_NAME;
-    if (named && state.mode) return "";
-    if (!named && state.mode) return "Preencha seu nome para começar.";
-    if (named && !state.mode) return "Escolha o formato da partida.";
-    return "Preencha seu nome e escolha o formato da partida.";
+    if (!state.mode) return "Escolha o formato da partida.";
+    if (isReady()) return "";
+    return "Preencha os três nomes (mínimo de 2 caracteres cada).";
   }
 
+  function focusSetup() {
+    if (state.mode === "human") {
+      el.playerNames[0].focus();
+    } else {
+      el.modeButtons[0].focus();
+    }
+  }
 
   function render() {
     const showingInfo = state.page === "how" || state.page === "rules";
@@ -86,6 +76,7 @@
     el.setup.setAttribute("aria-hidden", String(showingInfo));
     el.setup.inert = showingInfo;
     el.start.hidden = !state.started;
+    el.playerFields.hidden = state.mode !== "human";
     el.infoHow.hidden = state.started || state.page !== "how";
     el.infoRules.hidden = state.started || state.page !== "rules";
 
@@ -100,7 +91,7 @@
     el.play.disabled = !isReady();
     el.hint.textContent = hintFor();
 
-    el.startName.textContent = state.name.trim();
+    el.startName.textContent = state.names.map((name) => name.trim()).join(" · ");
     el.summary.textContent = summaryFor(state.mode);
   }
 
@@ -117,9 +108,8 @@
     el.back.focus();
 
     const detail = {
-      name: state.name.trim(),
-      mode: state.mode,
-      aiOpponents: config.aiOpponents
+      players: state.names.map((name) => name.trim()),
+      mode: state.mode
     };
     document.dispatchEvent(new CustomEvent("carcassonne:start", { detail }));
 
@@ -128,7 +118,7 @@
       const resposta = await fetch("/api/partida", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nome: detail.name, modo: detail.mode })
+        body: JSON.stringify({ jogadores: detail.players, modo: detail.mode })
       });
       if (!resposta.ok) throw new Error("o servidor recusou a partida");
       window.location.href = "jogo.html";
@@ -144,7 +134,7 @@
     state.started = false;
     state.page = "setup";
     render();
-    el.name.focus();
+    focusSetup();
   }
 
   function showInfo(page) {
@@ -157,19 +147,24 @@
   function backToSetup() {
     state.page = "setup";
     render();
-    el.name.focus();
+    focusSetup();
   }
 
-  el.name.addEventListener("input", (event) => {
-    state.name = event.target.value;
-    render();
-  });
-
-  el.name.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      play();
-    }
+  el.playerNames.forEach((input, index) => {
+    input.addEventListener("input", () => {
+      state.names[index] = input.value;
+      render();
+    });
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        if (index < el.playerNames.length - 1) {
+          el.playerNames[index + 1].focus();
+        } else if (isReady()) {
+          play();
+        }
+      }
+    });
   });
 
   el.modeButtons.forEach((button) => {
