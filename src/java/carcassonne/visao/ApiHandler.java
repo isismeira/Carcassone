@@ -44,6 +44,8 @@ public class ApiHandler implements HttpHandler {
                         List<String> jogadores = Json.textos(corpo, "jogadores");
                         int quantidadeIAs = Json.inteiro(corpo, "quantidadeIAs", 1);
                         controlador.novaPartida(jogadores, quantidadeIAs);
+                    } else if (ControladorDePartida.MODO_ENTRE_IAS.equals(modo)) {
+                        controlador.novaPartidaEntreIAs(Json.inteiro(corpo, "quantidadeIAs", 2));
                     } else {
                         throw new IllegalArgumentException("Modo de partida inválido.");
                     }
@@ -65,6 +67,11 @@ public class ApiHandler implements HttpHandler {
                     exigirPartida();
                     exigirVezHumana();
                     controlador.concluirJogada(Json.inteiro(corpo, "segmento", -1));
+                    responderEstado(troca);
+                }
+                case "/api/avancar" -> {
+                    exigirPartida();
+                    controlador.avancarTurnoIA();
                     responderEstado(troca);
                 }
                 case "/api/estado" -> {

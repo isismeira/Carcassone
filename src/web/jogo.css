@@ -64,9 +64,9 @@ body {
 
 .hud__jogador {
   display: flex;
+  flex: none; /* com muitos jogadores quem encolhe é o placar, não a vez */
   align-items: center;
   gap: 10px;
-  min-width: 0;
 }
 
 .hud__vez {
@@ -87,6 +87,7 @@ body {
 
 .hud__placar {
   display: flex;
+  min-width: 0;
   align-items: center;
   gap: 6px;
   margin: 0;
@@ -135,6 +136,7 @@ body {
 }
 
 .hud__nome {
+  max-width: 200px;
   font-family: 'Cinzel', Georgia, serif;
   font-size: 19px;
   font-weight: 700;
@@ -622,6 +624,11 @@ body {
 
 /* --- Telas estreitas ----------------------------------------------------- */
 
+@media (max-width: 1200px) {
+  .hud { flex-wrap: wrap; row-gap: 8px; }
+  .hud__placar { order: 4; flex: 1 0 100%; }
+}
+
 @media (max-width: 900px) {
   :root { --peca: 76px; }
 
@@ -678,4 +685,10 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .vaga { animation: none; }
   .peca-atual__imagem { transition: none; }
+}
+
+/* Modo assistir (IA x IA): ninguém joga, então some tudo que pede uma ação. */
+.jogo--assistindo .girar,
+.jogo--assistindo .painel__nota {
+  display: none;
 }

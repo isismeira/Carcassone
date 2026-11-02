@@ -23,6 +23,9 @@ import java.util.Set;
  * ou no modelo; nada nesta classe conhece HTTP, JSON ou imagens (RNF05.2).
  */
 public class ControladorDePartida {
+    /** Partida so de IAs: a tela pede um turno por vez para o jogo ser assistido. */
+    public static final String MODO_ENTRE_IAS = "ai-vs-ai";
+
     private Partida partida;
     private Peca pecaAtual;
     private Jogada jogadaPendente;
@@ -45,15 +48,15 @@ public class ControladorDePartida {
             return;
         }
         if ("human".equals(modoNormalizado)) {
-            throw new IllegalArgumentException("Informe os nomes dos três jogadores humanos.");
+            throw new IllegalArgumentException("Informe os nomes dos jogadores humanos.");
         }
         throw new IllegalArgumentException("Modo de partida inválido.");
     }
 
-    /** Inicia uma partida local para exatamente três jogadores humanos. */
+    /** Inicia uma partida local para 2 a 5 jogadores humanos. */
     public synchronized void novaPartida(List<String> nomes) {
-        if (nomes == null || nomes.size() != 3) {
-            throw new IllegalArgumentException("A partida precisa de exatamente três jogadores.");
+        if (nomes == null || nomes.size() < 2 || nomes.size() > 5) {
+            throw new IllegalArgumentException("A partida precisa de 2 a 5 jogadores.");
         }
         List<String> nomesNormalizados = nomes.stream()
                 .map(nome -> nome == null ? "" : nome.trim())
@@ -82,6 +85,14 @@ public class ControladorDePartida {
             throw new IllegalArgumentException("Cada nome deve ter entre 2 e 18 caracteres.");
         }
         iniciarPartida(nomesNormalizados, quantidadeIAs, "ai");
+    }
+
+    /** Inicia uma partida so de IAs (2 a 5); as jogadas saem por {@link #avancarTurnoIA()}. */
+    public synchronized void novaPartidaEntreIAs(int quantidade) {
+        if (quantidade < 2 || quantidade > 5) {
+            throw new IllegalArgumentException("A partida precisa de 2 a 5 inteligências artificiais.");
+        }
+        iniciarPartida(List.of(), quantidade, MODO_ENTRE_IAS);
     }
 
     private void iniciarPartida(List<String> nomes, int quantidadeIAs, String modo) {
@@ -221,27 +232,57 @@ public class ControladorDePartida {
     }
 
     private void executarTurnosIA() {
-        if (executandoTurnosIA) {
+        if (executandoTurnosIA || MODO_ENTRE_IAS.equals(modo)) {
             return;
         }
         executandoTurnosIA = true;
         try {
             while (vezDaIA() && pecaAtual != null && jogadaPendente == null) {
-                EstrategiaIA estrategia = (EstrategiaIA) getJogador().getEstrategia();
-                Jogada escolhida = estrategia.escolherJogada(partida, pecaAtual);
-                if (escolhida == null) {
-                    throw new IllegalStateException("A IA não encontrou uma jogada para uma peça válida.");
-                }
-                if (!colocar(escolhida.getPosicao().getX(), escolhida.getPosicao().getY())) {
-                    throw new IllegalStateException("A jogada escolhida pela IA não é válida.");
-                }
-                if (jogadaPendente != null
-                        && !concluirJogada(estrategia.escolherSegmento(jogadaPendente))) {
-                    throw new IllegalStateException("A IA não conseguiu concluir a própria jogada.");
-                }
+                jogarUmTurnoIA();
             }
         } finally {
             executandoTurnosIA = false;
+        }
+    }
+
+    /**
+     * Joga exatamente um turno na partida so de IAs, para a tela mostrar a
+     * partida passo a passo.
+     *
+     * @return false se a partida ja tinha acabado.
+     */
+    public synchronized boolean avancarTurnoIA() {
+        if (!MODO_ENTRE_IAS.equals(modo)) {
+            throw new IllegalStateException("avancar turno so existe na partida entre IAs");
+        }
+        if (partida == null) {
+            throw new IllegalStateException("nenhuma partida em andamento");
+        }
+        if (encerrada()) {
+            return false;
+        }
+        executandoTurnosIA = true;
+        try {
+            jogarUmTurnoIA();
+        } finally {
+            executandoTurnosIA = false;
+        }
+        return true;
+    }
+
+    /** Executa a jogada completa (cartela e meeple) da IA da vez. */
+    private void jogarUmTurnoIA() {
+        EstrategiaIA estrategia = (EstrategiaIA) getJogador().getEstrategia();
+        Jogada escolhida = estrategia.escolherJogada(partida, pecaAtual);
+        if (escolhida == null) {
+            throw new IllegalStateException("A IA não encontrou uma jogada para uma peça válida.");
+        }
+        if (!colocar(escolhida.getPosicao().getX(), escolhida.getPosicao().getY())) {
+            throw new IllegalStateException("A jogada escolhida pela IA não é válida.");
+        }
+        if (jogadaPendente != null
+                && !concluirJogada(estrategia.escolherSegmento(jogadaPendente))) {
+            throw new IllegalStateException("A IA não conseguiu concluir a própria jogada.");
         }
     }
 

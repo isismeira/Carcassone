@@ -57,6 +57,9 @@ public final class Testes {
         iaExecutaOTurnoSemInteracao();
         partidaConfiguraMultiplosHumanosEIAs();
         cartelaSemEncaixeEmLugarNenhum();
+        partidaContraJogadoresAceitaDeDoisACinco();
+        partidaEntreIAsAvancaUmTurnoPorVez();
+        avancarTurnoExigePartidaEntreIAs();
         nenhumaCartelaSeperde();
         desempenhoDeFechamento();
         campoSeparadoNaoContaCidadeDaMesmaPeca();
@@ -695,6 +698,91 @@ public final class Testes {
         Peca soCampo = acharNoBaralho("Monastery#2");
         checar("cartela de campo encaixa ao redor do mosteiro",
                 !tabuleiro.posicoesCandidatas(soCampo).isEmpty(), "nao coube");
+    }
+
+    private static void partidaContraJogadoresAceitaDeDoisACinco() {
+        String[] todos = {"Ana", "Bia", "Caio", "Dora", "Eva", "Fabi"};
+        for (int quantidade : new int[] {2, 5}) {
+            ControladorDePartida controlador = new ControladorDePartida();
+            controlador.novaPartida(List.of(todos).subList(0, quantidade));
+            checar("contra jogadores aceita " + quantidade + " pessoas",
+                    controlador.getPartida().getJogadores().size() == quantidade,
+                    "jogadores=" + controlador.getPartida().getJogadores().size());
+        }
+        for (int quantidade : new int[] {1, 6}) {
+            boolean rejeitou = false;
+            try {
+                new ControladorDePartida().novaPartida(List.of(todos).subList(0, quantidade));
+            } catch (IllegalArgumentException entradaInvalida) {
+                rejeitou = true;
+            }
+            checar("contra jogadores rejeita " + quantidade + " pessoa(s)", rejeitou, "aceitou");
+        }
+    }
+
+    private static void partidaEntreIAsAvancaUmTurnoPorVez() {
+        for (int quantidade : new int[] {1, 6}) {
+            boolean rejeitou = false;
+            try {
+                new ControladorDePartida().novaPartidaEntreIAs(quantidade);
+            } catch (IllegalArgumentException entradaInvalida) {
+                rejeitou = true;
+            }
+            checar("IA x IA rejeita " + quantidade + " IA(s)", rejeitou, "aceitou");
+        }
+        for (int quantidade = 2; quantidade <= 5; quantidade++) {
+            String rotulo = "IA x IA com " + quantidade + " IAs: ";
+            ControladorDePartida controlador = new ControladorDePartida();
+            controlador.novaPartidaEntreIAs(quantidade);
+            checar(rotulo + "nasce so com a peca inicial e sem jogada automatica",
+                    controlador.getPartida().getTabuleiro().quantidadeDePecas() == 1
+                            && controlador.getModo().equals("ai-vs-ai")
+                            && controlador.getPartida().getJogadores().size() == quantidade,
+                    "pecas=" + controlador.getPartida().getTabuleiro().quantidadeDePecas()
+                            + ", modo=" + controlador.getModo());
+
+            String primeira = controlador.getJogador().getNome();
+            boolean avancou = controlador.avancarTurnoIA();
+            checar(rotulo + "um turno acrescenta uma peca e passa a vez",
+                    avancou && controlador.getPartida().getTabuleiro().quantidadeDePecas() == 2
+                            && primeira.equals("IA 1")
+                            && controlador.getJogador().getNome().equals("IA 2"),
+                    "pecas=" + controlador.getPartida().getTabuleiro().quantidadeDePecas()
+                            + ", vez=" + controlador.getJogador().getNome());
+
+            boolean semExcecao = true;
+            String falha = "";
+            try {
+                while (controlador.avancarTurnoIA()) {
+                    // joga ate a partida acabar
+                }
+            } catch (RuntimeException erro) {
+                semExcecao = false;
+                falha = String.valueOf(erro);
+            }
+            int noTabuleiro = controlador.getPartida().getTabuleiro().quantidadeDePecas() - 1;
+            int descartadas = controlador.getPartida().getBaralho().quantidadeDescartada();
+            int restantes = controlador.getPartida().getBaralho().quantidadeRestante();
+            checar(rotulo + "termina sem excecao e nenhuma cartela se perde",
+                    semExcecao && controlador.encerrada()
+                            && noTabuleiro + descartadas + restantes == Baralho.TOTAL_DE_CARTELAS,
+                    falha + " " + noTabuleiro + " + " + descartadas + " + " + restantes);
+            checar(rotulo + "depois do fim avancar nao faz nada",
+                    !controlador.avancarTurnoIA(), "avancou apos o fim");
+        }
+    }
+
+    private static void avancarTurnoExigePartidaEntreIAs() {
+        ControladorDePartida controlador = new ControladorDePartida();
+        controlador.novaPartida(List.of("Ana", "Bia"));
+        boolean lancou = false;
+        try {
+            controlador.avancarTurnoIA();
+        } catch (IllegalStateException esperado) {
+            lancou = true;
+        }
+        checar("avancar turno de IA em partida de humanos lanca IllegalStateException",
+                lancou, "nao lancou");
     }
 
     /** Nenhuma cartela some: colocadas + descartadas + restantes = 72. */

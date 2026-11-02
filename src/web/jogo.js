@@ -11,11 +11,14 @@
   const PECA_ESTREITA = 76;
   const ZOOM_MIN = 0.35;
   const ZOOM_MAX = 2.2;
+  const INTERVALO_ENTRE_IAS = 1000; // ms entre um turno e o seguinte no modo assistir
+  const MARGEM_ENQUADRAMENTO = 48;  // px livres em volta das peças ao enquadrar
 
   const MODOS = {
     ai: "contra IA",
     human: "contra jogadores",
-    mixed: "IAs e jogadores"
+    mixed: "IAs e jogadores",
+    "ai-vs-ai": "IA x IA"
   };
 
   const PAPEIS = {
@@ -56,6 +59,7 @@
   };
 
   const el = {
+    jogo: document.querySelector(".jogo"),
     mundo: document.querySelector("[data-mundo]"),
     tabuleiro: document.querySelector("[data-tabuleiro]"),
     nome: document.querySelector("[data-nome]"),
@@ -84,6 +88,10 @@
 
   const camera = { x: 0, y: 0, escala: 1 };
   let estado = null;
+  let enquadrarSozinho = true; // modo assistir: a câmera acompanha o tabuleiro até a pessoa mexer nela
+
+  // Modo assistir: só IAs jogam e a tela apenas mostra cada turno.
+  const assistindo = () => estado !== null && estado.modo === "ai-vs-ai";
 
   const ladoDaPeca = () =>
     window.matchMedia("(max-width: 900px)").matches ? PECA_ESTREITA : PECA;
@@ -107,11 +115,35 @@
     try {
       estado = await chamar("/api/estado");
       desenhar();
-      centralizar();
+      if (assistindo()) {
+        enquadrar();
+        agendarProximoTurno();
+      } else {
+        centralizar();
+      }
     } catch (erro) {
       // Sem partida no servidor: volta para a tela inicial.
       encerrar("Nenhuma partida em andamento. Comece pela tela inicial.");
     }
+  }
+
+  // Só agenda o próximo turno depois de a resposta anterior chegar: nunca há
+  // duas requisições ao mesmo tempo.
+  function agendarProximoTurno() {
+    if (!assistindo() || estado.encerrada) return;
+    setTimeout(avancarTurno, INTERVALO_ENTRE_IAS);
+  }
+
+  async function avancarTurno() {
+    try {
+      estado = await chamar("/api/avancar", {});
+    } catch (erro) {
+      el.aviso.textContent = erro.message;
+      return; // erro interrompe a partida assistida
+    }
+    desenhar();
+    enquadrar();
+    agendarProximoTurno();
   }
 
   async function agir(rota, corpo) {
@@ -131,6 +163,7 @@
     el.nome.textContent = estado.jogador.nome;
     el.cor.style.background = CORES[estado.jogador.cor] || CORES.VERMELHO;
     el.modo.textContent = MODOS[estado.modo] ? `· ${MODOS[estado.modo]}` : "";
+    el.jogo.classList.toggle("jogo--assistindo", assistindo());
     desenharPlacar();
 
     el.restantes.textContent = estado.baralho.restantes;
@@ -269,7 +302,7 @@
       el.mundo.append(div);
     }
 
-    for (const vaga of estado.candidatas) {
+    for (const vaga of assistindo() ? [] : estado.candidatas) {
       const botao = document.createElement("button");
       botao.type = "button";
       botao.className = "vaga";
@@ -280,7 +313,9 @@
       el.mundo.append(botao);
     }
 
-    if (estado.aguardandoMeeple) {
+    if (assistindo() && estado.pecaAtual) {
+      el.dica.textContent = `${estado.jogador.nome} está jogando…`;
+    } else if (estado.aguardandoMeeple) {
       el.dica.textContent = estado.jogador.meeples > 0
         ? "A peça foi colocada. Escolha um segmento livre para alocar um meeple ou continue sem alocar."
         : "A peça foi colocada. Você não tem meeples disponíveis; continue para a próxima jogada.";
@@ -332,9 +367,24 @@
     aplicarCamera();
   }
 
+  // Ajusta escala e posição para todas as peças caberem na área do tabuleiro.
+  function enquadrar() {
+    if (!assistindo() || !enquadrarSozinho || !estado.tabuleiro.length) return;
+    const lado = ladoDaPeca();
+    const xs = estado.tabuleiro.map(c => c.x);
+    const ys = estado.tabuleiro.map(c => c.y);
+    const largura = (Math.max(...xs) - Math.min(...xs) + 1) * lado;
+    const altura = (Math.max(...ys) - Math.min(...ys) + 1) * lado;
+    const cabeX = (el.tabuleiro.clientWidth - 2 * MARGEM_ENQUADRAMENTO) / largura;
+    const cabeY = (el.tabuleiro.clientHeight - 2 * MARGEM_ENQUADRAMENTO) / altura;
+    camera.escala = Math.max(ZOOM_MIN, Math.min(1, cabeX, cabeY));
+    centralizar();
+  }
+
   function ampliar(fator, focoX, focoY) {
     const anterior = camera.escala;
     const nova = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, anterior * fator));
+    enquadrarSozinho = false;
     if (nova === anterior) return;
     // mantém sob o cursor o ponto do mundo que já estava ali
     const razao = nova / anterior;
@@ -350,6 +400,7 @@
 
   el.tabuleiro.addEventListener("pointerdown", (evento) => {
     if (evento.target.closest(".vaga")) return;
+    enquadrarSozinho = false;
     arrastando = true;
     ultimoX = evento.clientX;
     ultimoY = evento.clientY;
@@ -400,8 +451,10 @@
     botao.addEventListener("click", () => {
       const passo = Number(botao.dataset.zoom);
       if (passo === 0) {
+        enquadrarSozinho = true;
         camera.escala = 1;
         centralizar();
+        enquadrar(); // só muda algo no modo assistir, onde a câmera volta a acompanhar o tabuleiro
       } else {
         ampliar(passo > 0 ? 1.2 : 1 / 1.2, 0, 0);
       }
@@ -409,7 +462,7 @@
   });
 
   document.addEventListener("keydown", (evento) => {
-    if (evento.target.matches("input, textarea")) return;
+    if (evento.target.matches("input, textarea") || assistindo()) return;
     if (evento.key === "e" || evento.key === "E" || evento.key === "ArrowRight") {
       agir("/api/rotacionar", { sentido: "direita" });
     } else if (evento.key === "q" || evento.key === "Q" || evento.key === "ArrowLeft") {
@@ -418,7 +471,10 @@
   });
 
   window.addEventListener("resize", () => {
-    if (estado) desenharTabuleiro();
+    if (estado) {
+      desenharTabuleiro();
+      if (assistindo()) enquadrar();
+    }
   });
 
   carregar();

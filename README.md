@@ -1,8 +1,8 @@
 # Carcassonne
 
 Versão web do jogo de tabuleiro Carcassonne, com servidor em Java e interface em
-HTML, CSS e JavaScript. Jogue contra a IA ou com outras pessoas no mesmo
-dispositivo.
+HTML, CSS e JavaScript. Jogue contra a IA, com outras pessoas no mesmo dispositivo
+ou assista a uma partida só entre IAs.
 
 <p align="center">
   <img src="docs/capturas/tela-inicial.png" alt="Tela inicial com a escolha do formato da partida" width="49%">
@@ -36,8 +36,10 @@ Na tela inicial, escolha o formato da partida:
 - **Jogador contra IA:** de 1 a 4 pessoas e de 1 a 4 IAs, com 2 a 5 participantes
   no total. Informe o nome de cada pessoa; as IAs jogam seus turnos
   automaticamente.
-- **Contra jogadores:** três pessoas jogam em turnos no mesmo dispositivo. Informe
-  o nome de cada uma.
+- **Contra jogadores:** de 2 a 5 pessoas jogam em turnos no mesmo dispositivo.
+  Escolha a quantidade e informe o nome de cada uma.
+- **IA x IA:** de 2 a 5 IAs jogam entre si, sem nomes a preencher. Você só assiste:
+  as jogadas aparecem turno a turno, cerca de uma por segundo, até o fim da partida.
 
 Os links **Como jogar** e **Regras & pontuação**, na mesma tela, explicam as
 regras.

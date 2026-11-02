@@ -4,10 +4,10 @@
   const DEFAULTS = { mistEnabled: true, showRules: true };
 
   const MIN_NAME = 2;
-  const PLAYER_COUNT = 3;
+  const MIN_PLAYERS = 2;
   const MAX_HUMAN_PLAYERS = 4;
   const MAX_PLAYERS = 5;
-  const MODES = ["ai", "human"];
+  const MODES = ["ai", "human", "ai-vs-ai"];
 
   const params = new URLSearchParams(location.search);
 
@@ -20,9 +20,11 @@
   };
 
   const state = {
-    names: Array(MAX_HUMAN_PLAYERS).fill(""),
+    names: Array(MAX_PLAYERS).fill(""),
     humanCount: 1,
     aiCount: 1,
+    playerCount: MIN_PLAYERS,
+    iaCount: MIN_PLAYERS,
     mode: null,
     started: false,
     page: "setup"
@@ -32,13 +34,16 @@
     mist: document.querySelector("[data-mist]"),
     logo: document.querySelector("[data-logo]"),
     logoFallback: document.querySelector("[data-logo-fallback]"),
-    playerFields: document.querySelector("[data-player-fields]"),
-    playerNames: Array.from(document.querySelectorAll("[data-player-name]")),
     aiConfig: document.querySelector("[data-ai-config]"),
+    humanConfig: document.querySelector("[data-human-config]"),
+    iaConfig: document.querySelector("[data-ia-config]"),
     humanCount: document.querySelector("[data-human-count]"),
     aiCount: document.querySelector("[data-ai-count]"),
-    humanFields: Array.from(document.querySelectorAll("[data-human-field]")),
-    humanNames: Array.from(document.querySelectorAll("[data-human-name]")),
+    playerCount: document.querySelector("[data-player-count]"),
+    iaCount: document.querySelector("[data-ia-count]"),
+    nameBlock: document.querySelector("[data-player-fields]"),
+    nameFields: Array.from(document.querySelectorAll("[data-player-field]")),
+    nameInputs: Array.from(document.querySelectorAll("[data-player-name]")),
     modes: document.querySelector("[data-modes]"),
     modeButtons: Array.from(document.querySelectorAll("[data-mode]:not(:disabled)")),
     play: document.querySelector("[data-play]"),
@@ -56,18 +61,23 @@
   };
 
 
-  const isReady = () => state.mode === "ai"
-    ? state.names.slice(0, state.humanCount)
-      .every((name) => name.trim().length >= MIN_NAME)
-    : state.mode === "human"
-      && state.names.slice(0, PLAYER_COUNT).every((name) => name.trim().length >= MIN_NAME);
+  // Quantas pessoas digitam nome no formato ativo (IA x IA não tem nomes).
+  const namedCount = () => state.mode === "ai" ? state.humanCount
+    : state.mode === "human" ? state.playerCount : 0;
+
+  const namesInUse = () => state.names.slice(0, namedCount()).map((name) => name.trim());
+
+  const isReady = () => state.mode === "ai-vs-ai"
+    || (MODES.includes(state.mode) && namesInUse().every((name) => name.length >= MIN_NAME));
 
   function summaryFor(mode) {
     switch (mode) {
       case "human":
-        return "Partida local para três pessoas, em turnos no mesmo dispositivo.";
+        return `Partida local para ${state.playerCount} pessoas, em turnos no mesmo dispositivo.`;
       case "ai":
         return `Partida com ${state.humanCount} ${state.humanCount === 1 ? "jogador humano" : "jogadores humanos"} e ${state.aiCount} ${state.aiCount === 1 ? "IA" : "IAs"} (${state.humanCount + state.aiCount} participantes).`;
+      case "ai-vs-ai":
+        return `Partida entre ${state.iaCount} IAs, em turnos automáticos.`;
       default:
         return "";
     }
@@ -78,14 +88,14 @@
     if (isReady()) return "";
     return state.mode === "ai"
       ? "Informe o nome de cada jogador (mínimo de 2 caracteres)."
-      : "Preencha os três nomes (mínimo de 2 caracteres cada).";
+      : "Preencha todos os nomes (mínimo de 2 caracteres cada).";
   }
 
   function focusSetup() {
-    if (state.mode === "human") {
-      el.playerNames[0].focus();
-    } else if (state.mode === "ai") {
-      el.humanNames[0].focus();
+    if (state.mode === "human" || state.mode === "ai") {
+      el.nameInputs[0].focus();
+    } else if (state.mode === "ai-vs-ai") {
+      el.iaCount.focus();
     } else {
       el.modeButtons[0].focus();
     }
@@ -98,10 +108,12 @@
     el.setup.setAttribute("aria-hidden", String(showingInfo));
     el.setup.inert = showingInfo;
     el.start.hidden = !state.started;
-    el.playerFields.hidden = state.mode !== "human";
+    el.nameBlock.hidden = namedCount() === 0;
     el.aiConfig.hidden = state.mode !== "ai";
-    el.humanFields.forEach((field, index) => {
-      field.hidden = index >= state.humanCount;
+    el.humanConfig.hidden = state.mode !== "human";
+    el.iaConfig.hidden = state.mode !== "ai-vs-ai";
+    el.nameFields.forEach((field, index) => {
+      field.hidden = index >= namedCount();
     });
     el.infoHow.hidden = state.started || state.page !== "how";
     el.infoRules.hidden = state.started || state.page !== "rules";
@@ -117,12 +129,12 @@
     el.play.disabled = !isReady();
     el.hint.textContent = hintFor();
 
-    el.startName.textContent = state.mode === "ai"
-      ? [
-        ...state.names.slice(0, state.humanCount).map((name) => name.trim()),
-        ...Array.from({ length: state.aiCount }, (_, index) => `IA ${index + 1}`)
-      ].join(" · ")
-      : state.names.slice(0, PLAYER_COUNT).map((name) => name.trim()).join(" · ");
+    const iasNoInicio = state.mode === "ai" ? state.aiCount
+      : state.mode === "ai-vs-ai" ? state.iaCount : 0;
+    el.startName.textContent = [
+      ...namesInUse(),
+      ...Array.from({ length: iasNoInicio }, (_, index) => `IA ${index + 1}`)
+    ].join(" · ");
     el.summary.textContent = summaryFor(state.mode);
   }
 
@@ -139,10 +151,9 @@
     el.back.focus();
 
     const detail = {
-      players: state.mode === "ai"
-        ? state.names.slice(0, state.humanCount).map((name) => name.trim())
-        : state.names.slice(0, PLAYER_COUNT).map((name) => name.trim()),
-      quantidadeIAs: state.mode === "ai" ? state.aiCount : 0,
+      players: namesInUse(),
+      quantidadeIAs: state.mode === "ai" ? state.aiCount
+        : state.mode === "ai-vs-ai" ? state.iaCount : 0,
       mode: state.mode
     };
     document.dispatchEvent(new CustomEvent("carcassonne:start", { detail }));
@@ -188,24 +199,7 @@
     focusSetup();
   }
 
-  el.playerNames.forEach((input, index) => {
-    input.addEventListener("input", () => {
-      state.names[index] = input.value;
-      render();
-    });
-    input.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") {
-        event.preventDefault();
-        if (index < el.playerNames.length - 1) {
-          el.playerNames[index + 1].focus();
-        } else if (isReady()) {
-          play();
-        }
-      }
-    });
-  });
-
-  el.humanNames.forEach((input, index) => {
+  el.nameInputs.forEach((input, index) => {
     input.addEventListener("input", () => {
       state.names[index] = input.value;
       render();
@@ -213,9 +207,8 @@
     input.addEventListener("keydown", (event) => {
       if (event.key !== "Enter") return;
       event.preventDefault();
-      const proximo = el.humanNames.slice(index + 1, state.humanCount)[0];
-      if (proximo) {
-        proximo.focus();
+      if (index + 1 < namedCount()) {
+        el.nameInputs[index + 1].focus();
       } else if (isReady()) {
         play();
       }
@@ -232,6 +225,15 @@
     state.aiCount = Number(el.aiCount.value);
     state.humanCount = Math.min(state.humanCount, MAX_PLAYERS - state.aiCount);
     el.humanCount.value = String(state.humanCount);
+    render();
+  });
+
+  el.playerCount.addEventListener("change", () => {
+    state.playerCount = Number(el.playerCount.value);
+    render();
+  });
+  el.iaCount.addEventListener("change", () => {
+    state.iaCount = Number(el.iaCount.value);
     render();
   });
 
