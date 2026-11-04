@@ -14,6 +14,8 @@ import java.util.Random;
  * classes fora do diagrama. Cada linha descreve os 9 setores da cartela na ordem
  * NORTE, LESTE, SUL, OESTE, NORDESTE, SUDESTE, SUDOESTE, NOROESTE, CENTRO,
  * usando os codigos C=cidade, E=estrada, A=campo, M=mosteiro e O=nenhum.
+ * A quarta coluna declara os grupos de campo no formato lados:quinas, separando
+ * campos por ponto e virgula; N/E/S/W representam lados e NE/SE/SW/NW, quinas.
  * Os dados vem do projeto tsaglam/Carcassonne (EPL-2.0), preset
  * "Carcassonne Original", completado com as 2 cartelas de mosteiro com estrada
  * para fechar exatamente 72.</p>
@@ -22,27 +24,27 @@ public class Baralho {
     public static final int TOTAL_DE_CARTELAS = 72;
 
     private static final String[][] CATALOGO = {
-        // {nome, quantidade, setores}
-        {"CastleCenter",         "1", "CCCCCCCCC"},
-        {"CastleCenterEntry",    "3", "CCECCAACC"},
-        {"CastleCenterSide",     "4", "CCACCAACC"},
-        {"CastleEdge",           "5", "CCAACAAAA"},
-        {"CastleEdgeRoad",       "4", "CCEECAAAE"},
-        {"CastleSides",          "3", "CACAAAAAA"},
-        {"CastleSidesEdge",      "2", "CAACAAAOA"},
-        {"CastleTube",           "3", "ACACAAAAC"},
-        {"CastleWall",           "5", "CAAAAAAAA"},
-        {"CastleWallCurveLeft",  "3", "CAEEAAAAE"},
-        {"CastleWallCurveRight", "3", "CEEAAAAAE"},
-        {"CastleWallJunction",   "3", "CEEEAAAAO"},
-        {"CastleWallRoad",       "4", "CEAEAAAAE"},
-        {"Monastery",            "4", "AAAAAAAAM"},
-        {"MonasteryCastle",      "1", "CCCCCCCCM"},
-        {"MonasteryRoad",        "2", "AAEAAAAAM"},
-        {"Road",                 "8", "EAEAAAAAE"},
-        {"RoadCurve",            "9", "AAEEAAAAE"},
-        {"RoadJunctionLarge",    "1", "EEEEAAAAO"},
-        {"RoadJunctionSmall",    "4", "AEEEAAAAO"}
+        // {nome, quantidade, setores, grupos de campo (lados:quinas;...)}
+        {"CastleCenter",         "1", "CCCCCCCCC", ""},
+        {"CastleCenterEntry",    "3", "CCECCAACC", ":SE;:SW"},
+        {"CastleCenterSide",     "4", "CCACCAACC", "S:SE,SW"},
+        {"CastleEdge",           "5", "CCAACAAAA", "S,W:SE,SW,NW"},
+        {"CastleEdgeRoad",       "4", "CCEECAAAE", ":SE,NW;:SW"},
+        {"CastleSides",          "3", "CACAAAAAA", "E,W:NE,SE,SW,NW"},
+        {"CastleSidesEdge",      "2", "CAACAAAOA", "E,S:NE,SE,SW"},
+        {"CastleTube",           "3", "ACACAAAAC", "N:NE,NW;S:SE,SW"},
+        {"CastleWall",           "5", "CAAAAAAAA", "E,S,W:NE,SE,SW,NW"},
+        {"CastleWallCurveLeft",  "3", "CAEEAAAAE", "E:NE,SE,NW;:SW"},
+        {"CastleWallCurveRight", "3", "CEEAAAAAE", "W:SW,NW,NE;:SE"},
+        {"CastleWallJunction",   "3", "CEEEAAAAO", ":NE,NW;:SE;:SW"},
+        {"CastleWallRoad",       "4", "CEAEAAAAE", "S:SE,SW;:NE,NW"},
+        {"Monastery",            "4", "AAAAAAAAM", "N,E,S,W:NE,SE,SW,NW"},
+        {"MonasteryCastle",      "1", "CCCCCCCCM", ""},
+        {"MonasteryRoad",        "2", "AAEAAAAAM", "N,E,W:NE,SE,SW,NW"},
+        {"Road",                 "8", "EAEAAAAAE", "E:NE,SE;W:SW,NW"},
+        {"RoadCurve",            "9", "AAEEAAAAE", "N,E:NE,SE,NW;:SW"},
+        {"RoadJunctionLarge",    "1", "EEEEAAAAO", ":NE;:SE;:SW;:NW"},
+        {"RoadJunctionSmall",    "4", "AEEEAAAAO", "N:NE,NW;:SE;:SW"}
     };
 
     /** Cartela de inicio padrao do jogo base: muralha ao norte com estrada passando. */
@@ -69,7 +71,7 @@ public class Baralho {
             String nome = linha[0];
             int quantidade = Integer.parseInt(linha[1]);
             for (int i = 0; i < quantidade; i++) {
-                pecas.add(criarPeca(nome, linha[2], nome + "#" + (i + 1), false));
+                pecas.add(criarPeca(nome, linha[2], linha[3], nome + "#" + (i + 1), false));
             }
         }
     }
@@ -108,17 +110,18 @@ public class Baralho {
     public static Peca criarPecaInicial() {
         for (String[] linha : CATALOGO) {
             if (linha[0].equals(TIPO_INICIAL)) {
-                return criarPeca(linha[0], linha[2], TIPO_INICIAL + "#inicial", true);
+                return criarPeca(linha[0], linha[2], linha[3], TIPO_INICIAL + "#inicial", true);
             }
         }
         throw new IllegalStateException("cartela inicial ausente do catalogo");
     }
 
     /** Monta uma cartela a partir da linha de catalogo, derivando os segmentos. */
-    private static Peca criarPeca(String tipo, String setores, String id, boolean inicial) {
+    private static Peca criarPeca(
+            String tipo, String setores, String topologiaCampos, String id, boolean inicial) {
         boolean brasao = contarCidades(setores) >= SETORES_PARA_BRASAO;
         Peca peca = new Peca(id, tipo + "0.png", brasao, inicial);
-        for (Segmento segmento : derivarSegmentos(setores)) {
+        for (Segmento segmento : derivarSegmentos(setores, topologiaCampos)) {
             peca.adicionarSegmento(segmento);
         }
         return peca;
@@ -128,17 +131,8 @@ public class Baralho {
         return (int) setores.chars().filter(c -> c == 'C').count();
     }
 
-    /**
-     * Descobre os segmentos da cartela a partir dos 9 setores.
-     *
-     * <p>Dois lados do mesmo terreno pertencem ao mesmo segmento quando o centro
-     * da cartela e daquele terreno (o que liga todos os lados de uma vez) ou
-     * quando sao lados vizinhos e o canto entre eles e do mesmo terreno. E por
-     * isso que uma estrada reta forma um unico segmento e um cruzamento forma
-     * varios, e que a cidade de canto liga os dois lados enquanto a cidade de
-     * lados opostos permanece dividida.</p>
-     */
-    private static List<Segmento> derivarSegmentos(String setores) {
+    /** Deriva cidades e estradas dos setores e cria campos pela topologia declarada. */
+    private static List<Segmento> derivarSegmentos(String setores, String topologiaCampos) {
         List<Segmento> resultado = new ArrayList<>();
         char centro = setores.charAt(8);
 
@@ -146,7 +140,7 @@ public class Baralho {
             resultado.add(new Segmento(TipoTerreno.MOSTEIRO, List.of()));
         }
 
-        for (char codigo : new char[] {'C', 'E', 'A'}) {
+        for (char codigo : new char[] {'C', 'E'}) {
             int[] grupo = {0, 1, 2, 3};
             for (int lado = 0; lado < 4; lado++) {
                 if (setores.charAt(lado) != codigo) {
@@ -166,6 +160,7 @@ public class Baralho {
             }
             adicionarGrupos(resultado, grupo, codigo);
         }
+        adicionarCampos(resultado, setores, topologiaCampos);
         return resultado;
     }
 
@@ -201,21 +196,133 @@ public class Baralho {
     private static void adicionarGrupos(List<Segmento> resultado, int[] grupo, char codigo) {
         TipoTerreno tipo = switch (codigo) {
             case 'C' -> TipoTerreno.CIDADE;
-            case 'E' -> TipoTerreno.ESTRADA;
-            default -> TipoTerreno.CAMPO;
+            default -> TipoTerreno.ESTRADA;
         };
         for (int raiz = 0; raiz < 4; raiz++) {
             if (grupo[raiz] == -1 || raiz(grupo, raiz) != raiz) {
                 continue;
             }
             List<Lado> lados = new ArrayList<>();
+            double somaX = 0;
+            double somaY = 0;
             for (int lado = 0; lado < 4; lado++) {
                 if (grupo[lado] != -1 && raiz(grupo, lado) == raiz) {
                     lados.add(Lado.values()[lado]);
+                    double[] posicaoLado = coordenadaMeepleNoLado(Lado.values()[lado]);
+                    somaX += posicaoLado[0];
+                    somaY += posicaoLado[1];
                 }
             }
-            resultado.add(new Segmento(tipo, lados));
+            double posicaoX = somaX / lados.size();
+            double posicaoY = somaY / lados.size();
+            if (posicaoX == 0.5 && posicaoY == 0.5) {
+                double[] posicaoLado = coordenadaMeepleNoLado(lados.get(0));
+                posicaoX = posicaoLado[0];
+                posicaoY = posicaoLado[1];
+            }
+            resultado.add(new Segmento(tipo, lados, List.of(), posicaoX, posicaoY));
         }
+    }
+
+    private static void adicionarCampos(
+            List<Segmento> resultado, String setores, String topologiaCampos) {
+        boolean[] setoresDeclarados = new boolean[8];
+        if (!topologiaCampos.isEmpty()) {
+            for (String definicao : topologiaCampos.split(";", -1)) {
+                String[] partes = definicao.split(":", -1);
+                if (partes.length != 2) {
+                    throw new IllegalArgumentException("topologia de campo invalida: " + definicao);
+                }
+                List<Lado> lados = new ArrayList<>();
+                List<Canto> cantos = new ArrayList<>();
+                if (!partes[0].isEmpty()) {
+                    for (String codigo : partes[0].split(",")) {
+                        Lado lado = ladoDeCodigo(codigo);
+                        validarSetorCampo(setores, lado.ordinal(), setoresDeclarados, codigo);
+                        lados.add(lado);
+                    }
+                }
+                if (!partes[1].isEmpty()) {
+                    for (String codigo : partes[1].split(",")) {
+                        Canto canto = cantoDeCodigo(codigo);
+                        int indice = indiceSetorDoCanto(canto);
+                        validarSetorCampo(setores, indice, setoresDeclarados, codigo);
+                        cantos.add(canto);
+                    }
+                }
+                double posicaoX = 0.5;
+                double posicaoY = 0.5;
+                if (!lados.isEmpty()) {
+                    double somaX = 0;
+                    double somaY = 0;
+                    for (Lado lado : lados) {
+                        double[] posicao = coordenadaMeepleNoLado(lado);
+                        somaX += posicao[0];
+                        somaY += posicao[1];
+                    }
+                    posicaoX = somaX / lados.size();
+                    posicaoY = somaY / lados.size();
+                    if (posicaoX == 0.5 && posicaoY == 0.5) {
+                        double[] posicao = coordenadaMeepleNoLado(lados.get(0));
+                        posicaoX = posicao[0];
+                        posicaoY = posicao[1];
+                    }
+                }
+                resultado.add(new Segmento(TipoTerreno.CAMPO, lados, cantos, posicaoX, posicaoY));
+            }
+        }
+        for (int setor = 0; setor < 8; setor++) {
+            if ((setores.charAt(setor) == 'A') != setoresDeclarados[setor]) {
+                throw new IllegalArgumentException(
+                        "topologia de campo incompleta ou invalida no setor " + setor);
+            }
+        }
+    }
+
+    private static void validarSetorCampo(
+            String setores, int indice, boolean[] declarados, String codigo) {
+        if (setores.charAt(indice) != 'A' || declarados[indice]) {
+            throw new IllegalArgumentException("setor de campo invalido ou repetido: " + codigo);
+        }
+        declarados[indice] = true;
+    }
+
+    private static Lado ladoDeCodigo(String codigo) {
+        return switch (codigo) {
+            case "N" -> Lado.NORTE;
+            case "E" -> Lado.LESTE;
+            case "S" -> Lado.SUL;
+            case "W" -> Lado.OESTE;
+            default -> throw new IllegalArgumentException("lado desconhecido: " + codigo);
+        };
+    }
+
+    private static Canto cantoDeCodigo(String codigo) {
+        return switch (codigo) {
+            case "NE" -> Canto.NORDESTE;
+            case "SE" -> Canto.SUDESTE;
+            case "SW" -> Canto.SUDOESTE;
+            case "NW" -> Canto.NOROESTE;
+            default -> throw new IllegalArgumentException("quina desconhecida: " + codigo);
+        };
+    }
+
+    private static int indiceSetorDoCanto(Canto canto) {
+        return switch (canto) {
+            case NORDESTE -> 4;
+            case SUDESTE -> 5;
+            case SUDOESTE -> 6;
+            case NOROESTE -> 7;
+        };
+    }
+
+    private static double[] coordenadaMeepleNoLado(Lado lado) {
+        return switch (lado) {
+            case NORTE -> new double[] {0.5, 0.2};
+            case LESTE -> new double[] {0.8, 0.5};
+            case SUL -> new double[] {0.5, 0.8};
+            case OESTE -> new double[] {0.2, 0.5};
+        };
     }
 
     /** @return o catalogo bruto, usado pelos testes para conferir o total. */

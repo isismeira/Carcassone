@@ -1,83 +1,122 @@
 (() => {
   "use strict";
 
-  const DEFAULTS = {
-    mistEnabled: true,   
-    showRules: true,    
-    aiOpponents: 2      
-  };
+  const DEFAULTS = { mistEnabled: true, showRules: true };
 
   const MIN_NAME = 2;
-  const MODES = ["ai", "human", "mixed"];
+  const MIN_PLAYERS = 2;
+  const MAX_HUMAN_PLAYERS = 4;
+  const MAX_PLAYERS = 5;
+  const MODES = ["ai", "human", "ai-vs-ai"];
 
   const params = new URLSearchParams(location.search);
 
   const readBool = (value, fallback) =>
     value === null ? fallback : !/^(0|false|no|nao|não)$/i.test(value.trim());
 
-  const readInt = (value, fallback, min, max) => {
-    const n = Number.parseInt(value ?? "", 10);
-    return Number.isNaN(n) ? fallback : Math.min(max, Math.max(min, n));
-  };
-
   const config = {
     mistEnabled: readBool(params.get("mist"), DEFAULTS.mistEnabled),
-    showRules: readBool(params.get("rules"), DEFAULTS.showRules),
-    aiOpponents: readInt(params.get("ai"), DEFAULTS.aiOpponents, 1, 4)
+    showRules: readBool(params.get("rules"), DEFAULTS.showRules)
   };
 
-  const state = { name: "", mode: null, started: false };
+  const state = {
+    names: Array(MAX_PLAYERS).fill(""),
+    humanCount: 1,
+    aiCount: 1,
+    playerCount: MIN_PLAYERS,
+    iaCount: MIN_PLAYERS,
+    mode: null,
+    started: false,
+    page: "setup"
+  };
 
   const el = {
     mist: document.querySelector("[data-mist]"),
     logo: document.querySelector("[data-logo]"),
     logoFallback: document.querySelector("[data-logo-fallback]"),
-    name: document.querySelector("[data-name]"),
+    aiConfig: document.querySelector("[data-ai-config]"),
+    humanConfig: document.querySelector("[data-human-config]"),
+    iaConfig: document.querySelector("[data-ia-config]"),
+    humanCount: document.querySelector("[data-human-count]"),
+    aiCount: document.querySelector("[data-ai-count]"),
+    playerCount: document.querySelector("[data-player-count]"),
+    iaCount: document.querySelector("[data-ia-count]"),
+    nameBlock: document.querySelector("[data-player-fields]"),
+    nameFields: Array.from(document.querySelectorAll("[data-player-field]")),
+    nameInputs: Array.from(document.querySelectorAll("[data-player-name]")),
     modes: document.querySelector("[data-modes]"),
-    modeButtons: Array.from(document.querySelectorAll("[data-mode]")),
+    modeButtons: Array.from(document.querySelectorAll("[data-mode]:not(:disabled)")),
     play: document.querySelector("[data-play]"),
     hint: document.querySelector("[data-hint]"),
     links: document.querySelector("[data-links]"),
     setup: document.querySelector('[data-view="setup"]'),
     start: document.querySelector('[data-view="start"]'),
+    infoHow: document.querySelector('[data-view="how"]'),
+    infoRules: document.querySelector('[data-view="rules"]'),
+    infoBackButtons: Array.from(document.querySelectorAll("[data-info-back]")),
+    infoPageButtons: Array.from(document.querySelectorAll("[data-info-page]")),
     startName: document.querySelector("[data-start-name]"),
     summary: document.querySelector("[data-summary]"),
     back: document.querySelector("[data-back]")
   };
 
 
-  const isReady = () => state.name.trim().length >= MIN_NAME && state.mode !== null;
+  // Quantas pessoas digitam nome no formato ativo (IA x IA não tem nomes).
+  const namedCount = () => state.mode === "ai" ? state.humanCount
+    : state.mode === "human" ? state.playerCount : 0;
+
+  const namesInUse = () => state.names.slice(0, namedCount()).map((name) => name.trim());
+
+  const isReady = () => state.mode === "ai-vs-ai"
+    || (MODES.includes(state.mode) && namesInUse().every((name) => name.length >= MIN_NAME));
 
   function summaryFor(mode) {
-    const n = config.aiOpponents;
     switch (mode) {
-      case "ai":
-        return n === 1
-          ? "Partida contra 1 oponente controlado pela IA."
-          : `Partida contra ${n} oponentes controlados pela IA.`;
       case "human":
-        return "Partida aberta: aguardando outros jogadores entrarem na mesa.";
-      case "mixed":
-        return n === 1
-          ? "Mesa mista: jogadores humanos completados por 1 IA."
-          : `Mesa mista: jogadores humanos completados por ${n} IAs.`;
+        return `Partida local para ${state.playerCount} pessoas, em turnos no mesmo dispositivo.`;
+      case "ai":
+        return `Partida com ${state.humanCount} ${state.humanCount === 1 ? "jogador humano" : "jogadores humanos"} e ${state.aiCount} ${state.aiCount === 1 ? "IA" : "IAs"} (${state.humanCount + state.aiCount} participantes).`;
+      case "ai-vs-ai":
+        return `Partida entre ${state.iaCount} IAs, em turnos automáticos.`;
       default:
         return "";
     }
   }
 
   function hintFor() {
-    const named = state.name.trim().length >= MIN_NAME;
-    if (named && state.mode) return "";
-    if (!named && state.mode) return "Preencha seu nome para começar.";
-    if (named && !state.mode) return "Escolha o formato da partida.";
-    return "Preencha seu nome e escolha o formato da partida.";
+    if (!state.mode) return "Escolha o formato da partida.";
+    if (isReady()) return "";
+    return state.mode === "ai"
+      ? "Informe o nome de cada jogador (mínimo de 2 caracteres)."
+      : "Preencha todos os nomes (mínimo de 2 caracteres cada).";
   }
 
+  function focusSetup() {
+    if (state.mode === "human" || state.mode === "ai") {
+      el.nameInputs[0].focus();
+    } else if (state.mode === "ai-vs-ai") {
+      el.iaCount.focus();
+    } else {
+      el.modeButtons[0].focus();
+    }
+  }
 
   function render() {
+    const showingInfo = state.page === "how" || state.page === "rules";
     el.setup.hidden = state.started;
+    el.setup.classList.toggle("view--reserved", showingInfo);
+    el.setup.setAttribute("aria-hidden", String(showingInfo));
+    el.setup.inert = showingInfo;
     el.start.hidden = !state.started;
+    el.nameBlock.hidden = namedCount() === 0;
+    el.aiConfig.hidden = state.mode !== "ai";
+    el.humanConfig.hidden = state.mode !== "human";
+    el.iaConfig.hidden = state.mode !== "ai-vs-ai";
+    el.nameFields.forEach((field, index) => {
+      field.hidden = index >= namedCount();
+    });
+    el.infoHow.hidden = state.started || state.page !== "how";
+    el.infoRules.hidden = state.started || state.page !== "rules";
 
     el.modeButtons.forEach((button) => {
       const selected = button.dataset.mode === state.mode;
@@ -90,7 +129,12 @@
     el.play.disabled = !isReady();
     el.hint.textContent = hintFor();
 
-    el.startName.textContent = state.name.trim();
+    const iasNoInicio = state.mode === "ai" ? state.aiCount
+      : state.mode === "ai-vs-ai" ? state.iaCount : 0;
+    el.startName.textContent = [
+      ...namesInUse(),
+      ...Array.from({ length: iasNoInicio }, (_, index) => `IA ${index + 1}`)
+    ].join(" · ");
     el.summary.textContent = summaryFor(state.mode);
   }
 
@@ -107,9 +151,10 @@
     el.back.focus();
 
     const detail = {
-      name: state.name.trim(),
-      mode: state.mode,
-      aiOpponents: config.aiOpponents
+      players: namesInUse(),
+      quantidadeIAs: state.mode === "ai" ? state.aiCount
+        : state.mode === "ai-vs-ai" ? state.iaCount : 0,
+      mode: state.mode
     };
     document.dispatchEvent(new CustomEvent("carcassonne:start", { detail }));
 
@@ -118,7 +163,11 @@
       const resposta = await fetch("/api/partida", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nome: detail.name, modo: detail.mode })
+        body: JSON.stringify({
+          jogadores: detail.players,
+          quantidadeIAs: detail.quantidadeIAs,
+          modo: detail.mode
+        })
       });
       if (!resposta.ok) throw new Error("o servidor recusou a partida");
       window.location.href = "jogo.html";
@@ -126,26 +175,66 @@
       state.started = false;
       render();
       el.hint.textContent =
-        "Não foi possível falar com o servidor. Rode ./run.sh e abra http://localhost:8080.";
+        "Não foi possível falar com o servidor. No Windows, rode .\\run.bat; no macOS/Linux, rode ./run.sh. Depois abra http://localhost:8080.";
     }
   }
 
   function back() {
     state.started = false;
+    state.page = "setup";
     render();
-    el.name.focus();
+    focusSetup();
   }
 
-  el.name.addEventListener("input", (event) => {
-    state.name = event.target.value;
+  function showInfo(page) {
+    if (page !== "how" && page !== "rules") return;
+    state.page = page;
+    render();
+    (page === "how" ? el.infoHow : el.infoRules).querySelector(".info__title").focus();
+  }
+
+  function backToSetup() {
+    state.page = "setup";
+    render();
+    focusSetup();
+  }
+
+  el.nameInputs.forEach((input, index) => {
+    input.addEventListener("input", () => {
+      state.names[index] = input.value;
+      render();
+    });
+    input.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      if (index + 1 < namedCount()) {
+        el.nameInputs[index + 1].focus();
+      } else if (isReady()) {
+        play();
+      }
+    });
+  });
+
+  el.humanCount.addEventListener("change", () => {
+    state.humanCount = Number(el.humanCount.value);
+    state.aiCount = Math.min(state.aiCount, MAX_PLAYERS - state.humanCount);
+    el.aiCount.value = String(state.aiCount);
+    render();
+  });
+  el.aiCount.addEventListener("change", () => {
+    state.aiCount = Number(el.aiCount.value);
+    state.humanCount = Math.min(state.humanCount, MAX_PLAYERS - state.aiCount);
+    el.humanCount.value = String(state.humanCount);
     render();
   });
 
-  el.name.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      play();
-    }
+  el.playerCount.addEventListener("change", () => {
+    state.playerCount = Number(el.playerCount.value);
+    render();
+  });
+  el.iaCount.addEventListener("change", () => {
+    state.iaCount = Number(el.iaCount.value);
+    render();
   });
 
   el.modeButtons.forEach((button) => {
@@ -167,7 +256,14 @@
 
   el.links.addEventListener("click", (event) => {
     const link = event.target.closest("a[data-link]");
-    if (link) event.preventDefault();
+    if (!link) return;
+    event.preventDefault();
+    showInfo(link.dataset.link);
+  });
+
+  el.infoBackButtons.forEach((button) => button.addEventListener("click", backToSetup));
+  el.infoPageButtons.forEach((button) => {
+    button.addEventListener("click", () => showInfo(button.dataset.infoPage));
   });
 
   if (!config.mistEnabled) el.mist.remove();

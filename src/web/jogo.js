@@ -11,11 +11,28 @@
   const PECA_ESTREITA = 76;
   const ZOOM_MIN = 0.35;
   const ZOOM_MAX = 2.2;
+  const INTERVALO_ENTRE_IAS = 1000; // ms entre um turno e o seguinte no modo assistir
+  const MARGEM_ENQUADRAMENTO = 48;  // px livres em volta das peças ao enquadrar
 
   const MODOS = {
-    ai: "contra IAs",
+    ai: "contra IA",
     human: "contra jogadores",
-    mixed: "IAs e jogadores"
+    mixed: "IAs e jogadores",
+    "ai-vs-ai": "IA x IA"
+  };
+
+  const PAPEIS = {
+    LADRAO: "Ladrão",
+    CAVALEIRO: "Cavaleiro",
+    MONGE: "Monge",
+    FAZENDEIRO: "Fazendeiro"
+  };
+
+  const MARCADORES = {
+    LADRAO: "L",
+    CAVALEIRO: "C",
+    MONGE: "M",
+    FAZENDEIRO: "F"
   };
 
   const TERRENOS = {
@@ -23,6 +40,13 @@
     ESTRADA: "Estrada",
     CAMPO: "Campo",
     MOSTEIRO: "Mosteiro"
+  };
+
+  const LADOS = {
+    NORTE: "Norte",
+    LESTE: "Leste",
+    SUL: "Sul",
+    OESTE: "Oeste"
   };
 
   const CORES = {
@@ -35,13 +59,17 @@
   };
 
   const el = {
+    jogo: document.querySelector(".jogo"),
     mundo: document.querySelector("[data-mundo]"),
     tabuleiro: document.querySelector("[data-tabuleiro]"),
     nome: document.querySelector("[data-nome]"),
     modo: document.querySelector("[data-modo]"),
     cor: document.querySelector("[data-cor]"),
+    placar: document.querySelector("[data-placar]"),
     restantes: document.querySelector("[data-restantes]"),
     colocadas: document.querySelector("[data-colocadas]"),
+    pontos: document.querySelector("[data-pontos]"),
+    meeples: document.querySelector("[data-meeples]"),
     descartadas: document.querySelector("[data-descartadas]"),
     blocoDescarte: document.querySelector("[data-bloco-descarte]"),
     pecaImagem: document.querySelector("[data-peca-imagem]"),
@@ -49,12 +77,21 @@
     pecaId: document.querySelector("[data-peca-id]"),
     aviso: document.querySelector("[data-aviso]"),
     dica: document.querySelector("[data-dica]"),
+    painelColocacao: document.querySelector("[data-painel-colocacao]"),
+    alocacao: document.querySelector("[data-alocacao]"),
+    alocacaoDica: document.querySelector("[data-alocacao-dica]"),
+    alocacaoAviso: document.querySelector("[data-alocacao-aviso]"),
+    segmentos: document.querySelector("[data-segmentos]"),
     fim: document.querySelector("[data-fim]"),
     fimTexto: document.querySelector("[data-fim-texto]")
   };
 
   const camera = { x: 0, y: 0, escala: 1 };
   let estado = null;
+  let enquadrarSozinho = true; // modo assistir: a câmera acompanha o tabuleiro até a pessoa mexer nela
+
+  // Modo assistir: só IAs jogam e a tela apenas mostra cada turno.
+  const assistindo = () => estado !== null && estado.modo === "ai-vs-ai";
 
   const ladoDaPeca = () =>
     window.matchMedia("(max-width: 900px)").matches ? PECA_ESTREITA : PECA;
@@ -78,11 +115,35 @@
     try {
       estado = await chamar("/api/estado");
       desenhar();
-      centralizar();
+      if (assistindo()) {
+        enquadrar();
+        agendarProximoTurno();
+      } else {
+        centralizar();
+      }
     } catch (erro) {
       // Sem partida no servidor: volta para a tela inicial.
       encerrar("Nenhuma partida em andamento. Comece pela tela inicial.");
     }
+  }
+
+  // Só agenda o próximo turno depois de a resposta anterior chegar: nunca há
+  // duas requisições ao mesmo tempo.
+  function agendarProximoTurno() {
+    if (!assistindo() || estado.encerrada) return;
+    setTimeout(avancarTurno, INTERVALO_ENTRE_IAS);
+  }
+
+  async function avancarTurno() {
+    try {
+      estado = await chamar("/api/avancar", {});
+    } catch (erro) {
+      el.aviso.textContent = erro.message;
+      return; // erro interrompe a partida assistida
+    }
+    desenhar();
+    enquadrar();
+    agendarProximoTurno();
   }
 
   async function agir(rota, corpo) {
@@ -102,15 +163,22 @@
     el.nome.textContent = estado.jogador.nome;
     el.cor.style.background = CORES[estado.jogador.cor] || CORES.VERMELHO;
     el.modo.textContent = MODOS[estado.modo] ? `· ${MODOS[estado.modo]}` : "";
+    el.jogo.classList.toggle("jogo--assistindo", assistindo());
+    desenharPlacar();
 
     el.restantes.textContent = estado.baralho.restantes;
     el.colocadas.textContent = estado.tabuleiro.length;
+    el.pontos.textContent = estado.jogador.pontos;
+    el.meeples.textContent = estado.jogador.meeples;
     el.descartadas.textContent = estado.baralho.descartadas;
     el.blocoDescarte.hidden = estado.baralho.descartadas === 0;
 
-    el.aviso.textContent = estado.mensagem || "";
+    el.painelColocacao.hidden = estado.aguardandoMeeple;
+    el.aviso.textContent = estado.aguardandoMeeple ? "" : (estado.mensagem || "");
+    el.alocacaoAviso.textContent = estado.aguardandoMeeple ? (estado.mensagem || "") : "";
 
     desenharPecaAtual();
+    desenharOpcoesMeeple();
     desenharTabuleiro();
 
     if (estado.encerrada) {
@@ -118,8 +186,37 @@
     }
   }
 
+  function desenharPlacar() {
+    el.placar.replaceChildren();
+    for (const jogador of estado.jogadores) {
+      const item = document.createElement("li");
+      item.className = "hud__placar-item";
+      if (jogador.vez) item.setAttribute("aria-current", "true");
+
+      const cor = document.createElement("span");
+      cor.className = "hud__placar-cor";
+      cor.style.backgroundColor = CORES[jogador.cor] || CORES.VERMELHO;
+      cor.setAttribute("aria-hidden", "true");
+
+      const nome = document.createElement("span");
+      nome.className = "hud__placar-nome";
+      nome.textContent = jogador.nome;
+
+      const pontos = document.createElement("span");
+      pontos.className = "hud__placar-pontos";
+      pontos.textContent = `${jogador.pontos}`;
+      pontos.setAttribute("aria-label", `${jogador.pontos} pontos`);
+
+      item.append(cor, nome, pontos);
+      el.placar.append(item);
+    }
+  }
+
   function desenharPecaAtual() {
     const peca = estado.pecaAtual;
+    document.querySelectorAll("[data-girar]").forEach((botao) => {
+      botao.disabled = estado.aguardandoMeeple || !peca;
+    });
     if (!peca) {
       el.pecaImagem.removeAttribute("src");
       el.pecaImagem.alt = "";
@@ -134,6 +231,31 @@
     el.pecaBrasao.hidden = !peca.brasao;
     el.pecaId.textContent = peca.id.replace("#", " nº ");
     preencherBordas(peca.bordas);
+  }
+
+  function desenharOpcoesMeeple() {
+    el.alocacao.hidden = !estado.aguardandoMeeple;
+    el.segmentos.replaceChildren();
+    if (!estado.aguardandoMeeple) return;
+
+    for (const segmento of estado.segmentos) {
+      const botao = document.createElement("button");
+      botao.type = "button";
+      botao.className = "alocacao__opcao";
+      botao.disabled = segmento.ocupado || estado.jogador.meeples === 0;
+      const papel = PAPEIS[segmento.papel] || segmento.papel;
+      const terreno = TERRENOS[segmento.terreno] || segmento.terreno;
+      const local = segmento.lados.length
+        ? segmento.lados.map((lado) => LADOS[lado] || lado).join(" e ")
+        : "centro da peça";
+      botao.textContent = `${papel} · ${terreno} · ${local}`;
+      botao.addEventListener("click", () =>
+        agir("/api/meeple", { segmento: segmento.indice }));
+      el.segmentos.append(botao);
+    }
+    el.alocacaoDica.textContent = estado.jogador.meeples > 0
+      ? "Escolha a região indicada pelos lados da peça ou continue sem alocar."
+      : "Você não tem meeples disponíveis. Continue para a próxima peça.";
   }
 
   function preencherBordas(bordas) {
@@ -151,7 +273,9 @@
 
     for (const cartela of estado.tabuleiro) {
       const div = document.createElement("div");
-      div.className = "cartela" + (cartela.inicial ? " cartela--inicial" : "");
+      div.className = "cartela"
+        + (cartela.inicial ? " cartela--inicial" : "")
+        + (cartela.meeples.length ? " cartela--com-meeple" : "");
       div.style.left = `${cartela.x * lado}px`;
       div.style.top = `${cartela.y * lado}px`;
       div.style.backgroundImage = `url("assets/tiles/${cartela.imagem}")`;
@@ -164,10 +288,21 @@
         brasao.style.setProperty("--contra-giro", `${-cartela.rotacao * 90}deg`);
         div.append(brasao);
       }
+      cartela.meeples.forEach((meeple, indice) => {
+        const marcador = document.createElement("span");
+        marcador.className = "cartela__meeple";
+        marcador.textContent = MARCADORES[meeple.papel] || "?";
+        marcador.title = `${PAPEIS[meeple.papel] || meeple.papel} de ${meeple.nome}`;
+        marcador.style.backgroundColor = CORES[meeple.cor] || CORES.VERMELHO;
+        marcador.style.left = `${meeple.x * 100}%`;
+        marcador.style.top = `${meeple.y * 100}%`;
+        marcador.style.setProperty("--contra-giro", `${-cartela.rotacao * 90}deg`);
+        div.append(marcador);
+      });
       el.mundo.append(div);
     }
 
-    for (const vaga of estado.candidatas) {
+    for (const vaga of assistindo() ? [] : estado.candidatas) {
       const botao = document.createElement("button");
       botao.type = "button";
       botao.className = "vaga";
@@ -178,9 +313,19 @@
       el.mundo.append(botao);
     }
 
-    el.dica.textContent = estado.candidatas.length
-      ? `${estado.candidatas.length} ${estado.candidatas.length === 1 ? "espaço aceita" : "espaços aceitam"} a peça nesta rotação. Gire para ver outras opções.`
-      : "Nenhum espaço aceita a peça nesta rotação — gire-a.";
+    if (assistindo() && estado.pecaAtual) {
+      el.dica.textContent = `${estado.jogador.nome} está jogando…`;
+    } else if (estado.aguardandoMeeple) {
+      el.dica.textContent = estado.jogador.meeples > 0
+        ? "A peça foi colocada. Escolha um segmento livre para alocar um meeple ou continue sem alocar."
+        : "A peça foi colocada. Você não tem meeples disponíveis; continue para a próxima jogada.";
+    } else if (estado.pecaAtual) {
+      el.dica.textContent = estado.candidatas.length
+        ? `${estado.candidatas.length} ${estado.candidatas.length === 1 ? "espaço aceita" : "espaços aceitam"} a peça nesta rotação. Gire para ver outras opções.`
+        : "Nenhum espaço aceita a peça nesta rotação — gire-a.";
+    } else {
+      el.dica.textContent = "A partida terminou.";
+    }
 
     aplicarCamera();
   }
@@ -193,8 +338,13 @@
   function textoDeEncerramento() {
     const colocadas = estado.tabuleiro.length;
     const descartadas = estado.baralho.descartadas;
-    let texto = `O baralho acabou. Você encaixou ${colocadas} peças no tabuleiro`;
-    texto += descartadas ? `, e ${descartadas} foram descartadas por não caber em lugar nenhum.` : ".";
+    const ranking = [...estado.jogadores].sort((a, b) => b.pontos - a.pontos);
+    const maiorPontuacao = ranking[0]?.pontos ?? 0;
+    const vencedores = ranking.filter((jogador) => jogador.pontos === maiorPontuacao);
+    const nomesVencedores = vencedores.map((jogador) => jogador.nome).join(" e ");
+    const placar = ranking.map((jogador) => `${jogador.nome}: ${jogador.pontos} pontos`).join(" · ");
+    let texto = `O baralho acabou. ${nomesVencedores} ${vencedores.length === 1 ? "venceu" : "empataram"} com ${maiorPontuacao} pontos. Placar: ${placar}. Foram encaixadas ${colocadas} peças no tabuleiro`;
+    texto += descartadas ? `; ${descartadas} foram descartadas por não caber em lugar nenhum.` : ".";
     return texto;
   }
 
@@ -217,9 +367,24 @@
     aplicarCamera();
   }
 
+  // Ajusta escala e posição para todas as peças caberem na área do tabuleiro.
+  function enquadrar() {
+    if (!assistindo() || !enquadrarSozinho || !estado.tabuleiro.length) return;
+    const lado = ladoDaPeca();
+    const xs = estado.tabuleiro.map(c => c.x);
+    const ys = estado.tabuleiro.map(c => c.y);
+    const largura = (Math.max(...xs) - Math.min(...xs) + 1) * lado;
+    const altura = (Math.max(...ys) - Math.min(...ys) + 1) * lado;
+    const cabeX = (el.tabuleiro.clientWidth - 2 * MARGEM_ENQUADRAMENTO) / largura;
+    const cabeY = (el.tabuleiro.clientHeight - 2 * MARGEM_ENQUADRAMENTO) / altura;
+    camera.escala = Math.max(ZOOM_MIN, Math.min(1, cabeX, cabeY));
+    centralizar();
+  }
+
   function ampliar(fator, focoX, focoY) {
     const anterior = camera.escala;
     const nova = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, anterior * fator));
+    enquadrarSozinho = false;
     if (nova === anterior) return;
     // mantém sob o cursor o ponto do mundo que já estava ali
     const razao = nova / anterior;
@@ -235,6 +400,7 @@
 
   el.tabuleiro.addEventListener("pointerdown", (evento) => {
     if (evento.target.closest(".vaga")) return;
+    enquadrarSozinho = false;
     arrastando = true;
     ultimoX = evento.clientX;
     ultimoY = evento.clientY;
@@ -278,12 +444,17 @@
       agir("/api/rotacionar", { sentido: botao.dataset.girar }));
   });
 
+  document.querySelector("[data-pular-meeple]").addEventListener("click", () =>
+    agir("/api/meeple", { segmento: -1 }));
+
   document.querySelectorAll("[data-zoom]").forEach((botao) => {
     botao.addEventListener("click", () => {
       const passo = Number(botao.dataset.zoom);
       if (passo === 0) {
+        enquadrarSozinho = true;
         camera.escala = 1;
         centralizar();
+        enquadrar(); // só muda algo no modo assistir, onde a câmera volta a acompanhar o tabuleiro
       } else {
         ampliar(passo > 0 ? 1.2 : 1 / 1.2, 0, 0);
       }
@@ -291,7 +462,7 @@
   });
 
   document.addEventListener("keydown", (evento) => {
-    if (evento.target.matches("input, textarea")) return;
+    if (evento.target.matches("input, textarea") || assistindo()) return;
     if (evento.key === "e" || evento.key === "E" || evento.key === "ArrowRight") {
       agir("/api/rotacionar", { sentido: "direita" });
     } else if (evento.key === "q" || evento.key === "Q" || evento.key === "ArrowLeft") {
@@ -300,7 +471,10 @@
   });
 
   window.addEventListener("resize", () => {
-    if (estado) desenharTabuleiro();
+    if (estado) {
+      desenharTabuleiro();
+      if (assistindo()) enquadrar();
+    }
   });
 
   carregar();

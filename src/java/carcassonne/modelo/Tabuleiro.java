@@ -153,7 +153,39 @@ public class Tabuleiro {
                 estabelecida.fecharPontas(2);
             }
         }
+        ligarCamposNasQuinas(peca, posicao);
         ligarCamposACidades(peca);
+    }
+
+    /**
+     * Liga os campos que se encontram nas metades de uma borda: a quina de
+     * campo encosta na quina espelhada da vizinha ortogonal daquele lado (ex.:
+     * os dois campos ao sul de uma estrada que continua). Cartelas apenas na
+     * diagonal nao se tocam, e a borda de cidade separa os campos.
+     */
+    private void ligarCamposNasQuinas(Peca peca, Posicao posicao) {
+        for (Segmento campo : peca.getSegmentos()) {
+            if (campo.getTipo() != TipoTerreno.CAMPO) {
+                continue;
+            }
+            for (Canto canto : campo.getCantos()) {
+                for (Lado lado : canto.lados()) {
+                    Peca vizinha = vizinha(posicao, lado);
+                    if (vizinha == null || peca.bordaEm(lado) == TipoTerreno.CIDADE) {
+                        continue;
+                    }
+                    Segmento campoVizinho = vizinha.segmentoEm(canto.espelhadoEm(lado));
+                    if (campoVizinho != null && campoVizinho.getTipo() == TipoTerreno.CAMPO) {
+                        Regiao estabelecida = campoVizinho.getRegiao();
+                        Regiao recemCriada = campo.getRegiao();
+                        if (estabelecida != recemCriada) {
+                            estabelecida.fundirCom(recemCriada);
+                            regioes.remove(recemCriada);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /** Registra quais cidades cada campo da cartela alimenta, para o RF05.4. */

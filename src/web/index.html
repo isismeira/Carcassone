@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Carcassonne</title>
-<meta name="description" content="Tela inicial do Carcassonne: escolha seu nome e o formato da partida.">
+<meta name="description" content="Tela inicial do Carcassonne: escolha o formato e os jogadores da partida.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
@@ -31,42 +31,123 @@
       <div class="view" data-view="setup">
 
         <div class="field">
-          <label class="field__label" for="player-name">Nome do jogador</label>
-          <input class="field__input" id="player-name" data-name type="text" maxlength="18"
-                 placeholder="Digite seu nome..." autocomplete="off" spellcheck="false">
-        </div>
-
-        <div class="field">
           <span class="field__label" id="mode-label">Formato da partida</span>
           <div class="modes" role="radiogroup" aria-labelledby="mode-label" data-modes>
 
-            <button class="mode" type="button" role="radio" aria-checked="false" tabindex="0" data-mode="ai">
+            <button class="mode" type="button" role="radio" aria-checked="false" tabindex="-1" data-mode="ai">
               <span class="mode__meeples" aria-hidden="true">
-                <span class="meeple meeple--grey"></span>
+                <span class="meeple meeple--red"></span>
                 <span class="meeple meeple--grey"></span>
               </span>
-              <span class="mode__name">Contra IAs</span>
+              <span class="mode__name">Jogador contra IA</span>
               <span class="mode__ring" aria-hidden="true"></span>
             </button>
 
-            <button class="mode" type="button" role="radio" aria-checked="false" tabindex="-1" data-mode="human">
+            <button class="mode" type="button" role="radio" aria-checked="false" tabindex="0" data-mode="human">
               <span class="mode__meeples" aria-hidden="true">
                 <span class="meeple meeple--red"></span>
                 <span class="meeple meeple--blue"></span>
+                <span class="meeple meeple--green"></span>
+                <span class="meeple meeple--yellow"></span>
               </span>
-              <span class="mode__name">Contra jogadores</span>
+              <span class="mode__name">Contra jogadores · 2 a 5</span>
               <span class="mode__ring" aria-hidden="true"></span>
             </button>
 
-            <button class="mode" type="button" role="radio" aria-checked="false" tabindex="-1" data-mode="mixed">
+            <button class="mode" type="button" role="radio" aria-checked="false" tabindex="-1" data-mode="ai-vs-ai">
               <span class="mode__meeples" aria-hidden="true">
-                <span class="meeple meeple--green"></span>
+                <span class="meeple meeple--grey"></span>
+                <span class="meeple meeple--grey"></span>
                 <span class="meeple meeple--grey"></span>
               </span>
-              <span class="mode__name">IAs e jogadores</span>
+              <span class="mode__name">IA x IA</span>
               <span class="mode__ring" aria-hidden="true"></span>
             </button>
 
+          </div>
+        </div>
+
+        <div class="field" data-ai-config hidden>
+          <div class="player-counts">
+            <label class="player-count">
+              <span class="field__label">Jogadores humanos</span>
+              <select class="field__input" data-human-count aria-label="Quantidade de jogadores humanos">
+                <option value="1" selected>1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+              </select>
+            </label>
+            <label class="player-count">
+              <span class="field__label">Inteligências artificiais</span>
+              <select class="field__input" data-ai-count aria-label="Quantidade de inteligências artificiais">
+                <option value="1" selected>1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+              </select>
+            </label>
+          </div>
+          <p class="player-count-hint">Escolha de 1 a 4 humanos e de 1 a 4 IAs. O total da partida deve ficar entre 2 e 5 participantes.</p>
+        </div>
+
+        <div class="field" data-human-config hidden>
+          <div class="player-counts">
+            <label class="player-count">
+              <span class="field__label">Quantidade de jogadores</span>
+              <select class="field__input" data-player-count aria-label="Quantidade de jogadores">
+                <option value="2" selected>2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <div class="field" data-ia-config hidden>
+          <div class="player-counts">
+            <label class="player-count">
+              <span class="field__label">Quantidade de inteligências artificiais</span>
+              <select class="field__input" data-ia-count aria-label="Quantidade de inteligências artificiais">
+                <option value="2" selected>2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+              </select>
+            </label>
+          </div>
+          <p class="player-count-hint">As IAs jogam sozinhas e você acompanha a partida turno a turno.</p>
+        </div>
+
+        <div class="field player-fields" data-player-fields hidden>
+          <span class="field__label" id="players-label">Nomes dos jogadores</span>
+          <div class="player-fields__list" role="group" aria-labelledby="players-label">
+            <label class="player-field" data-player-field>
+              <span class="player-field__name"><span class="meeple meeple--red" aria-hidden="true"></span> Jogador 1</span>
+              <input class="field__input" data-player-name type="text" maxlength="18"
+                     placeholder="Nome do jogador 1" autocomplete="off" spellcheck="false">
+            </label>
+            <label class="player-field" data-player-field hidden>
+              <span class="player-field__name"><span class="meeple meeple--blue" aria-hidden="true"></span> Jogador 2</span>
+              <input class="field__input" data-player-name type="text" maxlength="18"
+                     placeholder="Nome do jogador 2" autocomplete="off" spellcheck="false">
+            </label>
+            <label class="player-field" data-player-field hidden>
+              <span class="player-field__name"><span class="meeple meeple--green" aria-hidden="true"></span> Jogador 3</span>
+              <input class="field__input" data-player-name type="text" maxlength="18"
+                     placeholder="Nome do jogador 3" autocomplete="off" spellcheck="false">
+            </label>
+            <label class="player-field" data-player-field hidden>
+              <span class="player-field__name"><span class="meeple meeple--yellow" aria-hidden="true"></span> Jogador 4</span>
+              <input class="field__input" data-player-name type="text" maxlength="18"
+                     placeholder="Nome do jogador 4" autocomplete="off" spellcheck="false">
+            </label>
+            <label class="player-field" data-player-field hidden>
+              <span class="player-field__name"><span class="meeple meeple--black" aria-hidden="true"></span> Jogador 5</span>
+              <input class="field__input" data-player-name type="text" maxlength="18"
+                     placeholder="Nome do jogador 5" autocomplete="off" spellcheck="false">
+            </label>
           </div>
         </div>
 
@@ -91,6 +172,40 @@
         <p class="start__summary" data-summary></p>
         <button class="ghost" type="button" data-back>Voltar</button>
       </div>
+
+      <section class="view info view--info" data-view="how" aria-labelledby="how-title" hidden>
+        <h1 class="info__title" id="how-title" tabindex="-1">Como jogar</h1>
+        <div class="info__body">
+          <p>Cada jogador inicia o jogo com uma reserva de 7 Meeples para utilizar no tabuleiro. A cada turno, a peça do topo do baralho é comprada. Caso ela não possua nenhum posicionamento válido, ela é descartada e uma nova peça é comprada automaticamente.
+          <p>O jogador pode rotacionar a peça (Cidade, Estrada, Mosteiro ou Campo) em ângulos de 90°. É validado se a posição escolhida possui espaço livre e é adjacente a pelo menos uma peça já colocada. Todos os lados conectados (Norte, Sul, Leste, Oeste) devem coincidir perfeitamente com os tipos de terrenos das peças vizinhas.</p>
+          <p>O papel do Meeple é definido pelo segmento onde foi alocado: Ladrão na estrada, Cavaleiro na cidade, Monge no mosteiro e Fazendeiro no campo.</p>
+          <p>Ao concluir uma região (Estrada, Cidade ou Mosteiro), os Meeples pontuam e retornam imediatamente à reserva. A única exceção são os Fazendeiros nos campos, que permanecem no tabuleiro até o fim da partida.</p>
+          <p>A partida encerra automaticamente quando o baralho/pilha de peças estiver totalmente vazio e o último jogador não puder mais realizar jogadas válidas.</p>
+        </div>
+        <nav class="info__actions" aria-label="Navegação das informações">
+          <button class="ghost" type="button" data-info-back>Voltar</button>
+          <button class="ghost" type="button" data-info-page="rules">Regras &amp; pontuação</button>
+        </nav>
+      </section>
+
+      <section class="view info view--info" data-view="rules" aria-labelledby="rules-title" hidden>
+        <h1 class="info__title" id="rules-title" tabindex="-1">Regras &amp; pontuação</h1>
+        <div class="info__body">
+          <p>A pontuação total é atribuída ao jogador com o maior número de Meeples na região. Em caso de empate, todos os jogadores empatados recebem a pontuação integral.</p>
+          <p>Estrada Concluída: 1 ponto por peça que compõe a estrada.
+          <br>Cidade Concluída: 2 pontos por peça + 2 pontos extras por cada Brasão existente na cidade.
+          <br>Mosteiro Concluído: 9 pontos no total (1 ponto da peça do mosteiro + 8 pontos das peças ao redor).</p>
+          <p>A partida encerra automaticamente quando o baralho/pilha de peças estiver totalmente vazio e o último jogador não puder mais realizar jogadas válidas.</p>
+          <p>Estradas Incompletas: 1 ponto por peça.
+          <br>Cidades Incompletas: 1 ponto por peça + 1 ponto por brasão.
+          <br>Mosteiros Incompletos: 1 ponto pela peça do mosteiro + 1 ponto por cada peça vizinha.
+          <br>Campos (Fazendas): 3 pontos para cada Cidade Concluída adjacente ao campo contínuo.</p>
+        </div>
+        <nav class="info__actions" aria-label="Navegação das informações">
+          <button class="ghost" type="button" data-info-back>Voltar</button>
+          <button class="ghost" type="button" data-info-page="how">Como jogar</button>
+        </nav>
+      </section>
 
     </section>
 

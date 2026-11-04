@@ -51,6 +51,16 @@ public class Jogada {
         this.segmentoEscolhido = segmentoEscolhido;
     }
 
+    /** @return true se a jogada oferece ao jogador ao menos uma regiao livre. */
+    public boolean temOpcaoDeSeguidor() {
+        return jogador.temMeepleDisponivel() && peca.getSegmentos().stream()
+                .filter(Segmento::permiteColocacaoDeMeeple)
+                .map(Segmento::getRegiao)
+                .filter(regiao -> regiao != null)
+                .distinct()
+                .anyMatch(regiao -> !regiao.estaOcupada());
+    }
+
     /** @return true se a cartela entrou no tabuleiro. */
     public boolean colocarCartela(Tabuleiro tabuleiro) {
         return tabuleiro.colocar(peca, posicao);
@@ -62,7 +72,11 @@ public class Jogada {
      * @return true se o meeple foi colocado.
      */
     public boolean colocarSeguidor() {
-        if (segmentoEscolhido == null || !jogador.temMeepleDisponivel()) {
+        if (segmentoEscolhido == null || !peca.getSegmentos().contains(segmentoEscolhido)
+                || !segmentoEscolhido.permiteColocacaoDeMeeple()
+                || segmentoEscolhido.getRegiao() == null
+                || segmentoEscolhido.getRegiao().estaOcupada()
+                || !jogador.temMeepleDisponivel()) {
             return false;
         }
         Regiao regiao = segmentoEscolhido.getRegiao();
@@ -73,7 +87,10 @@ public class Jogada {
         if (meeple == null) {
             return false;
         }
-        meeple.ocupar(segmentoEscolhido);
+        if (!meeple.ocupar(segmentoEscolhido)) {
+            jogador.devolverMeeple(meeple);
+            return false;
+        }
         meepleColocado = meeple;
         return true;
     }

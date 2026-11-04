@@ -75,6 +75,16 @@ public class Peca {
         return null;
     }
 
+    /** @return o segmento que ocupa a quina indicada, ou null se nenhum ocupa. */
+    public Segmento segmentoEm(Canto canto) {
+        for (Segmento segmento : segmentos) {
+            if (segmento.ocupa(canto)) {
+                return segmento;
+            }
+        }
+        return null;
+    }
+
     /** @return o terreno exposto na borda indicada. */
     public TipoTerreno bordaEm(Lado lado) {
         Segmento segmento = segmentoEm(lado);

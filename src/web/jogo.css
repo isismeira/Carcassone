@@ -64,9 +64,15 @@ body {
 
 .hud__jogador {
   display: flex;
+  flex: none; /* com muitos jogadores quem encolhe é o placar, não a vez */
   align-items: center;
   gap: 10px;
-  min-width: 0;
+}
+
+.hud__vez {
+  color: #a9b6cd;
+  font-size: 15px;
+  white-space: nowrap;
 }
 
 .hud__chip {
@@ -79,7 +85,58 @@ body {
   box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.35);
 }
 
+.hud__placar {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hud__placar-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 5px 8px;
+  color: #d7dfed;
+  border: 1px solid rgba(212, 175, 55, 0.22);
+  border-radius: 3px;
+}
+
+.hud__placar-item[aria-current="true"] {
+  background: rgba(212, 175, 55, 0.14);
+  border-color: var(--gold);
+}
+
+.hud__placar-cor {
+  width: 10px;
+  height: 10px;
+  flex: none;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 50%;
+}
+
+.hud__placar-nome {
+  max-width: 100px;
+  overflow: hidden;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hud__placar-pontos {
+  color: var(--gold-soft);
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .hud__nome {
+  max-width: 200px;
   font-family: 'Cinzel', Georgia, serif;
   font-size: 19px;
   font-weight: 700;
@@ -187,7 +244,10 @@ body {
 
 .cartela--inicial {
   box-shadow: 0 0 0 3px var(--gold), 0 2px 10px rgba(0, 0, 0, 0.5);
-  z-index: 2;
+}
+
+.cartela--com-meeple {
+  z-index: 1;
 }
 
 .cartela__brasao {
@@ -198,6 +258,22 @@ body {
   /* contra-gira junto com a cartela para o escudo nunca aparecer de cabeca para baixo */
   transform: rotate(var(--contra-giro, 0deg));
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+}
+
+.cartela__meeple {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 23%;
+  aspect-ratio: 1;
+  color: #fff;
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: clamp(9px, 2vw, 15px);
+  font-weight: 700;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  border-radius: 50%;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.75);
+  transform: translate(-50%, -50%) rotate(var(--contra-giro, 0deg));
 }
 
 /* Espaços onde a peça atual encaixa (RNF04.1) */
@@ -265,6 +341,15 @@ body {
   border-left: 3px solid var(--leather);
   box-shadow: inset 0 0 60px rgba(150, 110, 55, 0.25);
 }
+
+.painel__colocacao {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+.painel__colocacao[hidden] { display: none; }
 
 .painel__titulo {
   margin: 0;
@@ -351,6 +436,79 @@ body {
   font-size: 16px;
   color: var(--muted);
   text-wrap: pretty;
+}
+
+.alocacao {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  padding: 12px;
+  background: rgba(251, 243, 222, 0.65);
+  border: 1px solid rgba(107, 74, 34, 0.45);
+  border-radius: 3px;
+}
+
+.alocacao[hidden] { display: none; }
+
+.alocacao__titulo {
+  margin: 0;
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  color: var(--label);
+}
+
+.alocacao__dica,
+.alocacao__aviso {
+  margin: 0;
+  font-size: 15px;
+  color: var(--muted);
+}
+
+.alocacao__aviso:not(:empty) {
+  padding: 8px 10px;
+  color: #6d2f16;
+  background: rgba(214, 140, 90, 0.22);
+  border-left: 3px solid #b5642f;
+}
+
+.alocacao__opcoes {
+  display: grid;
+  gap: 6px;
+}
+
+.alocacao__opcao,
+.alocacao__pular {
+  padding: 8px 10px;
+  cursor: pointer;
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 15px;
+  color: var(--ink);
+  background: linear-gradient(180deg, var(--parchment-light), #ecd8ae);
+  border: 1px solid var(--leather-soft);
+  border-radius: 3px;
+}
+
+.alocacao__opcao:hover:not(:disabled),
+.alocacao__pular:hover {
+  background: #fff9e8;
+  border-color: var(--leather);
+}
+
+.alocacao__opcao:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.alocacao__pular {
+  color: var(--label);
+  background: transparent;
+  border-style: dashed;
+}
+
+.girar__botao:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .painel__aviso {
@@ -466,6 +624,11 @@ body {
 
 /* --- Telas estreitas ----------------------------------------------------- */
 
+@media (max-width: 1200px) {
+  .hud { flex-wrap: wrap; row-gap: 8px; }
+  .hud__placar { order: 4; flex: 1 0 100%; }
+}
+
 @media (max-width: 900px) {
   :root { --peca: 76px; }
 
@@ -488,6 +651,13 @@ body {
     border-top: 3px solid var(--leather);
   }
 
+  .painel__colocacao {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+  }
+
   .painel__titulo,
   .bordas,
   .painel__nota { display: none; }
@@ -498,16 +668,27 @@ body {
 
   .painel__dica { flex-basis: 100%; font-size: 15px; }
 
-  .hud { gap: 10px; padding: 10px 12px; }
-  .hud__contadores { gap: 12px; }
+  .hud { flex-wrap: wrap; gap: 8px; padding: 10px 12px; }
+  .hud__contadores { gap: 8px; }
   .hud__nome { font-size: 16px; }
   .hud__sair { padding: 7px 10px; font-size: 11px; letter-spacing: 0.1em; }
-  .contador__valor { font-size: 18px; }
-  .contador__rotulo { font-size: 11px; }
+  .contador__valor { font-size: 16px; }
+  .contador__rotulo { font-size: 10px; }
   .hud__modo { display: none; }
+  .hud__placar { order: 4; flex: 1 0 100%; justify-content: center; }
+  .hud__placar-item { padding: 4px 6px; }
+  .hud__placar-nome { max-width: 76px; font-size: 12px; }
+  .hud__placar-pontos { font-size: 12px; }
+  .hud__vez { font-size: 12px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .vaga { animation: none; }
   .peca-atual__imagem { transition: none; }
+}
+
+/* Modo assistir (IA x IA): ninguém joga, então some tudo que pede uma ação. */
+.jogo--assistindo .girar,
+.jogo--assistindo .painel__nota {
+  display: none;
 }
